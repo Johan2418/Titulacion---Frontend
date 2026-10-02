@@ -42,6 +42,8 @@ Cuando el backend publique su especificación OpenAPI (RNF-24), los tipos manual
 | ------ | ---------- | ----- | --------------------------------------------- |
 | GET    | `/auth/me` | todos | Usuario actual + `estudianteId` / `docenteId` |
 
+Ver la sección [Autenticación](#autenticación-coordinación-con-el-backend) para las respuestas de error y la transición por etapas.
+
 ### Períodos (RF-17)
 
 | Método | Ruta                    | Rol   | Notas                                                                                                |
@@ -155,6 +157,49 @@ En ambos casos `detalles` lleva `{ actual, limite, bloquear, origenLimite }`.
 | GET        | `/auditoria?entidadTipo&entidadId&accion&q&desde&hasta&page&pageSize` | ADMIN      | Paginado (RF-34, RNF-34)                                     |
 | GET / POST | `/exportaciones`                                                      | ADMIN      | POST `{ tipoReporte, formato, periodoId, filtros? }` → `202` |
 | GET        | `/exportaciones/:id/descarga`                                         | ADMIN      | `409` si no está listo, `410` si expiró (RNF-33)             |
+
+## Autenticación (coordinación con el backend)
+
+El frontend obtiene el token del proveedor institucional (OIDC, authorization code + PKCE) y lo envía en cada petición. El backend valida el token y decide qué puede hacer el usuario. El front nunca valida firmas ni decide roles.
+
+### Respuestas de `GET /auth/me` y cómo las trata el front
+
+| Respuesta del backend                                      | `code` sugerido         | Qué hace el front                                                                |
+| ---------------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `200` con usuario y `rol` (`SesionUsuario`)                | —                       | Entra a `/estudiante`, `/docente` o `/admin` según el rol                        |
+| `200` con solo `{ subject, issuer }` (etapa 3 del backend) | —                       | Pantalla "Tu cuenta no está registrada": hay identidad pero no perfil            |
+| `401` token ausente, vencido o inválido                    | `TOKEN_INVALIDO`        | Descarta el token local y vuelve al ingreso con el aviso "Tu sesión expiró…"     |
+| `403` identidad válida sin usuario registrado              | `USUARIO_NO_REGISTRADO` | Pantalla "Tu cuenta no está registrada", con opción de ingresar con otra cuenta  |
+| `503` autenticación sin configurar o JWKS inaccesible      | `AUTH_NO_DISPONIBLE`    | Pantalla "No pudimos verificar tu sesión" con **Reintentar**; no borra la sesión |
+
+Un `401` en **cualquier** otro endpoint también invalida la sesión local. Un `503` en otros endpoints se muestra como notificación.
+
+El front acepta el cuerpo de error por defecto de NestJS (`{ statusCode, message, error }`); si falta `code`, usa `HTTP_<status>`. Aun así, se recomienda enviar el `code` en los errores de autenticación para no depender del texto del mensaje.
+
+### Transición por etapas
+
+1. **Etapa 3 (validación JWT, sin usuarios):** `/auth/me` devuelve `{ subject, issuer }`. El front lo reconoce y muestra "cuenta no registrada", así que conectar esta etapa no rompe nada, aunque nadie puede entrar todavía.
+2. **Etapa de usuarios:** `/auth/me` debe devolver `SesionUsuario` (`id`, `email`, `nombres`, `apellidos`, `rol`, `estado`, `estudianteId`, `docenteId`). Una identidad válida sin registro debe responder `403 USUARIO_NO_REGISTRADO`.
+
+### Requisitos para conectar front y backend
+
+- **CORS:** si front y API están en dominios distintos, el backend debe permitir el origen del front, la cabecera `Authorization` y el _preflight_ `OPTIONS`. Si el front se sirve detrás del mismo dominio (proxy `/api/` en Nginx), no hace falta.
+- **Configuración alineada:**
+
+  | Front (`.env`)                              | Backend (`.env`) | Deben coincidir en                               |
+  | ------------------------------------------- | ---------------- | ------------------------------------------------ |
+  | `VITE_OIDC_AUTHORITY`                       | `OIDC_ISSUER`    | El emisor (`iss`) de los tokens                  |
+  | Scope de la API dentro de `VITE_OIDC_SCOPE` | `OIDC_AUDIENCE`  | La audiencia (`aud`) del token que pide el front |
+  | —                                           | `JWKS_URI`       | Las claves del mismo emisor                      |
+
+  Si no coinciden, todas las peticiones responderán `401`.
+
+### Notas si el proveedor es Microsoft Entra ID (Microsoft 365)
+
+- **Emisor (v2):** `https://login.microsoftonline.com/<TENANT_ID>/v2.0`. JWKS: `https://login.microsoftonline.com/<TENANT_ID>/discovery/v2.0/keys`. Las firmas son `RS256`.
+- **Identificador estable:** en Entra el `sub` es distinto para cada aplicación cliente. El identificador estable del usuario es `oid` (junto con `tid`); conviene usarlo para `id_externo_sso` en la etapa de usuarios.
+- **Audiencia:** según la versión de token configurada en el registro de la API (`accessTokenAcceptedVersion`), `aud` llega como el GUID de la aplicación o como `api://...`. `OIDC_AUDIENCE` debe ser exactamente lo que llega.
+- **Tipo de token:** el front debe pedir un token para la API propia (p. ej. `api://<id>/access_as_user`), no para Microsoft Graph. Los tokens de Graph no son validables por terceros.
 
 ## Endpoints exclusivos del modo simulado
 
