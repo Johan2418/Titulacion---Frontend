@@ -47,6 +47,25 @@ describe('autorización (RNF-03 / RNF-04)', () => {
     como('desconocido')
     expect((await falla(api.get('/auth/me'))).status).toBe(401)
   })
+  it('distingue cuenta no registrada (403) y autenticación caída (503)', async () => {
+    como('no-registrado')
+    expect(await falla(api.get('/auth/me'))).toMatchObject({
+      status: 403,
+      code: 'USUARIO_NO_REGISTRADO',
+    })
+    como('auth-caida')
+    expect(await falla(api.get('/auth/me'))).toMatchObject({
+      status: 503,
+      code: 'AUTH_NO_DISPONIBLE',
+    })
+  })
+  it('simula la etapa actual del backend: identidad sin perfil', async () => {
+    como('solo-identidad')
+    expect(await api.get('/auth/me')).toEqual({
+      subject: expect.any(String),
+      issuer: expect.any(String),
+    })
+  })
   it('un estudiante no puede usar endpoints de administración', async () => {
     como('usr-est-4')
     expect((await falla(api.get('/asignaciones-tema'))).status).toBe(403)

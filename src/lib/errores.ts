@@ -22,7 +22,10 @@ export const REGLAS: Record<string, string> = {
 
 export function mensajeError(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 401) return 'Tu sesión expiró o no es válida. Vuelve a ingresar.'
     if (error.status === 403) return 'No tiene permisos para realizar esta acción.'
+    if (error.status === 503)
+      return 'El servicio no está disponible en este momento. Intente nuevamente en unos minutos.'
     if (error.status === 404 && error.code === 'HTTP_404') return 'El recurso solicitado no existe.'
     return error.regla ? `${error.message} (${error.regla})` : error.message
   }

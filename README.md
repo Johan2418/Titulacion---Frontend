@@ -32,6 +32,8 @@ npm run dev          # http://localhost:5173, con datos simulados (MSW)
 
 Los datos simulados se guardan en `localStorage`. El botón **Restablecer datos simulados** de la pantalla de ingreso vuelve al estado inicial.
 
+En **Escenarios de autenticación**, en la misma pantalla, se pueden simular las respuestas de `GET /auth/me` acordadas con el backend: cuenta no registrada (`403`), identidad sin perfil (etapa actual del backend) y autenticación no disponible (`503`). El detalle está en [`docs/API-CONTRATO.md`](docs/API-CONTRATO.md#autenticación-coordinación-con-el-backend).
+
 ### Conectar con el backend real
 
 Cree un archivo `.env.local` (no se versiona):

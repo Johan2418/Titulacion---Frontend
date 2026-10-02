@@ -1,7 +1,7 @@
 import { http } from 'msw'
 import { ahora, db, reiniciarDb } from '../db'
 import { sesion } from '../dto'
-import { API, ruta } from '../util'
+import { API, ruta, usuarioDe } from '../util'
 
 /** Usuarios sugeridos en el login simulado, con el escenario que permiten probar. */
 const DEMO: { id: string; escenario: string }[] = [
@@ -30,10 +30,20 @@ export const authHandlers = [
   ),
   http.get(
     `${API}/auth/me`,
-    ruta(({ u }) => {
-      u.ultimoAcceso = ahora()
-      return sesion(u)
-    }),
+    ruta(
+      ({ req }) => {
+        // etapa 3 del backend: solo identidad verificada, sin usuario ni rol
+        if (req.headers.get('Authorization') === 'Bearer mock:solo-identidad')
+          return {
+            subject: 'a1b2c3d4-sub',
+            issuer: 'https://login.microsoftonline.com/<tenant>/v2.0',
+          }
+        const u = usuarioDe(req)
+        u.ultimoAcceso = ahora()
+        return sesion(u)
+      },
+      { publica: true },
+    ),
   ),
   http.post(
     `${API}/mock/reiniciar`,

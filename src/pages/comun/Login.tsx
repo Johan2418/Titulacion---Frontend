@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { GraduationCapIcon, LogInIcon, RotateCcwIcon } from 'lucide-react'
+import { GraduationCapIcon, InfoIcon, LogInIcon, RotateCcwIcon } from 'lucide-react'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/AuthProvider'
 import { RUTA_INICIO } from '@/auth/RoleGuard'
 import { ConsultaEstado } from '@/components/Estados'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +15,21 @@ import { ROL } from '@/lib/estados'
 import type { SesionUsuario } from '@/types/dominio'
 
 type UsuarioDemo = SesionUsuario & { escenario: string }
+
+/** Escenarios de autenticación que reproducen las respuestas posibles del backend. */
+const ESCENARIOS_AUTH = [
+  {
+    id: 'no-registrado',
+    titulo: 'Cuenta no registrada',
+    detalle: '/auth/me responde 403 USUARIO_NO_REGISTRADO',
+  },
+  {
+    id: 'solo-identidad',
+    titulo: 'Solo identidad verificada',
+    detalle: '/auth/me responde { subject, issuer } sin rol',
+  },
+  { id: 'auth-caida', titulo: 'Autenticación no disponible', detalle: '/auth/me responde 503' },
+]
 
 function LoginMock() {
   const { iniciarSesion } = useAuth()
@@ -59,6 +75,30 @@ function LoginMock() {
             </ul>
           )}
         </ConsultaEstado>
+        <details className="rounded-lg border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Escenarios de autenticación
+          </summary>
+          <ul className="mt-2 grid gap-2 sm:grid-cols-3">
+            {ESCENARIOS_AUTH.map((e) => (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  disabled={!!entrando}
+                  onClick={async () => {
+                    setEntrando(e.id)
+                    await iniciarSesion(e.id)
+                    setEntrando(null)
+                  }}
+                  className="flex h-full w-full flex-col items-start gap-1 rounded-md border bg-card p-2 text-left text-sm hover:border-primary hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                >
+                  <span className="font-medium">{e.titulo}</span>
+                  <span className="text-xs text-muted-foreground">{e.detalle}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
         <Button
           variant="ghost"
           size="sm"
@@ -92,8 +132,9 @@ function LoginOidc() {
 }
 
 export default function Login() {
-  const { estado, usuario } = useAuth()
+  const { estado, usuario, aviso } = useAuth()
   if (estado === 'autenticado' && usuario) return <Navigate to={RUTA_INICIO[usuario.rol]} replace />
+  if (estado === 'no-registrado' || estado === 'no-disponible') return <Navigate to="/" replace />
   return (
     <main className="flex min-h-svh items-center justify-center bg-gradient-to-br from-sidebar to-primary p-4">
       <div className="w-full max-w-3xl space-y-6">
@@ -104,6 +145,12 @@ export default function Login() {
             <p className="text-sm opacity-90">Asignación de temas, tutores y PAT</p>
           </div>
         </div>
+        {aviso && (
+          <Alert variant="warning" className={env.useMocks ? '' : 'mx-auto max-w-md'}>
+            <InfoIcon />
+            <AlertDescription>{aviso}</AlertDescription>
+          </Alert>
+        )}
         <Card className={env.useMocks ? '' : 'mx-auto max-w-md'}>
           {env.useMocks ? <LoginMock /> : <LoginOidc />}
         </Card>

@@ -34,6 +34,15 @@ export const prohibido = (msg = 'No tiene permisos para realizar esta acción.')
 export function usuarioDe(request: Request): UsuarioRow {
   const auth = request.headers.get('Authorization') ?? ''
   const id = auth.startsWith('Bearer mock:') ? auth.slice('Bearer mock:'.length) : null
+  // escenarios simulados de autenticación (ver ESCENARIOS_AUTH en el login)
+  if (id === 'no-registrado')
+    throw falla(
+      403,
+      'USUARIO_NO_REGISTRADO',
+      'La identidad es válida pero no está registrada en el sistema.',
+    )
+  if (id === 'auth-caida')
+    throw falla(503, 'AUTH_NO_DISPONIBLE', 'El servicio de autenticación no está disponible.')
   const u = id ? db.usuarios.find((x) => x.id === id && x.estado === 'ACTIVO') : undefined
   if (!u) throw falla(401, 'NO_AUTENTICADO', 'La sesión expiró o no es válida.')
   return u

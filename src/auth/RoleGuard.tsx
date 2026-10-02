@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import type { Rol } from '@/types/dominio'
 import { CargandoPagina } from '@/components/Estados'
+import { EstadoSesion } from '@/pages/comun/EstadoSesion'
 import { useAuth } from './AuthProvider'
 
 export const RUTA_INICIO: Record<Rol, string> = {
@@ -14,6 +15,8 @@ export function RequiereSesion() {
   const { estado } = useAuth()
   const location = useLocation()
   if (estado === 'cargando') return <CargandoPagina />
+  if (estado === 'no-registrado' || estado === 'no-disponible')
+    return <EstadoSesion tipo={estado} />
   if (estado === 'anonimo') return <Navigate to="/login" replace state={{ desde: location }} />
   return <Outlet />
 }
