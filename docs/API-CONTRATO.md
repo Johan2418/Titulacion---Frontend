@@ -56,6 +56,7 @@ La renovación valida el `Origin` contra `AUTH_ORIGINS` del backend: el origen d
 | Plantillas PAT                      | `GET/POST /periodos/:id/plantillas-pat`, `.../vigente`, `.../:id/descarga`, `.../vigente/descarga`              |
 | Documentos PAT y revisión           | `.../asignaciones-tema/:id/documentos-pat` (`ultima`, `:id/descarga`, `:id/revision`)                           |
 | Bandeja de revisión PAT             | Última versión de cada asignación vigente                                                                       |
+| Reportes y exportaciones            | `GET/POST /periodos/:id/exportaciones`, `GET .../exportaciones/:id/descarga` (procesadas en segundo plano)      |
 | Notificaciones                      | `GET /notificaciones`, `POST /notificaciones/:id/leer`                                                          |
 | Seguimiento del estudiante          | Calculado con habilitación, grupo, invitaciones, postulaciones, asignación y PAT propios                        |
 
@@ -77,4 +78,3 @@ La interfaz las muestra, pero responden con el aviso "… todavía no está disp
 - Anulación manual de asignaciones.
 - Reactivación de una versión anterior de la plantilla PAT.
 - Consulta de auditoría.
-- Reportes y exportaciones.
