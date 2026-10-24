@@ -20,10 +20,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useDocentes } from '@/features/catalogos/api'
 import { useMiGrupo } from '@/features/grupos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { useMisPostulaciones, usePostular } from '@/features/postulaciones/api'
+import {
+  useMisPostulaciones,
+  usePostular,
+  useTutoresDisponibles,
+} from '@/features/postulaciones/api'
 import {
   esRepresentante,
   integrantesActivos,
@@ -48,7 +51,7 @@ export default function Postular() {
   const grupo = useMiGrupo(periodoId)
   const seguimiento = useSeguimiento(periodoId)
   const mias = useMisPostulaciones(periodoId)
-  const docentes = useDocentes({ habilitadoTutoria: true })
+  const docentes = useTutoresDisponibles(id)
   const postular = usePostular()
 
   const [paso, setPaso] = useState(0)

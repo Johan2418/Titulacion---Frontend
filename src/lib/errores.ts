@@ -20,13 +20,22 @@ export const REGLAS: Record<string, string> = {
   'RN-13': 'Ningún registro histórico se elimina.',
 }
 
+/** Mensajes por defecto de NestJS (en inglés): se reemplazan por textos en español. */
+const MENSAJES_GENERICOS =
+  /^(Unauthorized|Forbidden|Forbidden resource|Not Found|Cannot (GET|POST|PATCH|PUT|DELETE) .*|Internal server error|Service Unavailable|Too Many Requests|ThrottlerException.*)$/i
+
 export function mensajeError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Tu sesión expiró o no es válida. Vuelve a ingresar.'
-    if (error.status === 403) return 'No tiene permisos para realizar esta acción.'
-    if (error.status === 503)
-      return 'El servicio no está disponible en este momento. Intente nuevamente en unos minutos.'
-    if (error.status === 404 && error.code === 'HTTP_404') return 'El recurso solicitado no existe.'
+    const generico = !error.message || MENSAJES_GENERICOS.test(error.message)
+    if (generico) {
+      if (error.status === 401) return 'Tu sesión expiró o no es válida. Vuelve a ingresar.'
+      if (error.status === 403) return 'No tiene permisos para realizar esta acción.'
+      if (error.status === 404) return 'El recurso solicitado no existe.'
+      if (error.status === 429)
+        return 'Demasiados intentos. Espere un momento e intente nuevamente.'
+      if (error.status >= 500)
+        return 'El servicio no está disponible en este momento. Intente nuevamente en unos minutos.'
+    }
     return error.regla ? `${error.message} (${error.regla})` : error.message
   }
   if (error instanceof Error) return error.message

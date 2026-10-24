@@ -17,7 +17,8 @@ export function RequiereSesion() {
   if (estado === 'cargando') return <CargandoPagina />
   if (estado === 'no-registrado' || estado === 'no-disponible')
     return <EstadoSesion tipo={estado} />
-  if (estado === 'anonimo') return <Navigate to="/login" replace state={{ desde: location }} />
+  if (estado === 'anonimo' || estado === 'cambio-clave')
+    return <Navigate to="/login" replace state={{ desde: location }} />
   return <Outlet />
 }
 

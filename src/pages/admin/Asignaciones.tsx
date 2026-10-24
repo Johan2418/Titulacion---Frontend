@@ -23,8 +23,9 @@ export default function Asignaciones() {
   const { periodoId } = usePeriodo()
   const [estado, setEstado] = useState<EstadoAsignacionTema | ''>('VIGENTE')
   const query = useAsignaciones(periodoId, estado)
-  const aceptadas = usePostulaciones({ periodoId, estado: 'ACEPTADA' })
-  const porAsignar = (aceptadas.data ?? []).filter((p) => !p.asignacionVigenteId)
+  // en el backend se asigna directamente una postulación PENDIENTE
+  const pendientes = usePostulaciones({ periodoId, estado: 'PENDIENTE' })
+  const porAsignar = (pendientes.data ?? []).filter((p) => !p.asignacionVigenteId)
 
   const columnas: ColumnDef<AsignacionTema>[] = [
     {
@@ -113,7 +114,7 @@ export default function Asignaciones() {
         <TabsList>
           <TabsTrigger value="asignaciones">Asignaciones</TabsTrigger>
           <TabsTrigger value="por-asignar">
-            Postulaciones aceptadas por asignar {porAsignar.length ? `(${porAsignar.length})` : ''}
+            Postulaciones pendientes por asignar {porAsignar.length ? `(${porAsignar.length})` : ''}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="asignaciones">
@@ -138,12 +139,12 @@ export default function Asignaciones() {
           </ConsultaEstado>
         </TabsContent>
         <TabsContent value="por-asignar">
-          <ConsultaEstado query={aceptadas}>
+          <ConsultaEstado query={pendientes}>
             {() =>
               porAsignar.length ? (
                 <TablaPostulaciones datos={porAsignar} />
               ) : (
-                <Vacio titulo="No hay postulaciones aceptadas pendientes de asignación" />
+                <Vacio titulo="No hay postulaciones pendientes de asignación" />
               )
             }
           </ConsultaEstado>
