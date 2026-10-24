@@ -75,7 +75,9 @@ export default function Reportes() {
             variant="outline"
             disabled={expirado}
             onClick={() =>
-              descargarExportacion(row.original.id).catch((e) => toast.error(mensajeError(e)))
+              descargarExportacion(periodoId!, row.original.id).catch((e) =>
+                toast.error(mensajeError(e)),
+              )
             }
           >
             <DownloadIcon /> {expirado ? 'Expirado' : 'Descargar'}

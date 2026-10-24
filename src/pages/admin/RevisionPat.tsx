@@ -36,6 +36,7 @@ import type { DocumentoPat, EstadoDocumentoPat } from '@/types/dominio'
 
 function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
   const revisar = useRevisarPat()
+  const { periodoId } = usePeriodo()
   const anteriores = useDocumentosPat(doc.asignacionTemaId)
   const { control, register, handleSubmit, watch, formState } = useForm<RevisionForm>({
     resolver: zodResolver(revisionSchema),
@@ -56,14 +57,17 @@ function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
             className="space-y-4"
             noValidate
             onSubmit={handleSubmit((d) =>
-              revisar.mutate({ id: doc.id, ...d }, { onSuccess: onClose }),
+              revisar.mutate(
+                { id: doc.id, asignacionTemaId: doc.asignacionTemaId, ...d },
+                { onSuccess: onClose },
+              ),
             )}
           >
             <Button
               type="button"
               variant="outline"
               onClick={() =>
-                descargarDocumentoPat(doc.id).catch((e) => toast.error(mensajeError(e)))
+                descargarDocumentoPat(periodoId!, doc).catch((e) => toast.error(mensajeError(e)))
               }
             >
               <DownloadIcon /> Descargar {doc.nombreArchivo} ({formatoBytes(doc.tamanoBytes)})

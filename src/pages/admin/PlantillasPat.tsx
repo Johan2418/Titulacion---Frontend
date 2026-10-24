@@ -172,7 +172,9 @@ export default function PlantillasPat() {
             variant="ghost"
             size="icon"
             onClick={() =>
-              descargarPlantilla(row.original.id).catch((e) => toast.error(mensajeError(e)))
+              descargarPlantilla(periodoId!, row.original.id, row.original.nombreArchivo).catch(
+                (e) => toast.error(mensajeError(e)),
+              )
             }
             aria-label={`Descargar versión ${row.original.version}`}
           >

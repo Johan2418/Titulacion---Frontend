@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { CheckIcon, EyeIcon, ListChecksIcon, StarIcon, XIcon } from 'lucide-react'
-import { Campo } from '@/components/Campo'
+import { EyeIcon, ListChecksIcon, StarIcon } from 'lucide-react'
 import { DataTable } from '@/components/DataTable'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,13 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import { useAsignarTema } from '@/features/asignaciones/api'
 import { formatFechaHora } from '@/lib/fechas'
 import { ESTADO_POSTULACION, MODALIDAD } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { Postulacion } from '@/types/dominio'
-import { useAceptarPostulacion, useRechazarPostulacion } from './api'
 
 /** RF-26: tutores propuestos con su prioridad e indicando si es el proponente. */
 export function TutoresPropuestos({ postulacion }: { postulacion: Postulacion }) {
@@ -64,11 +61,7 @@ export function TutoresPropuestos({ postulacion }: { postulacion: Postulacion })
 }
 
 function DetallePostulacion({ p, onClose }: { p: Postulacion; onClose: () => void }) {
-  const aceptar = useAceptarPostulacion()
-  const rechazar = useRechazarPostulacion()
   const asignar = useAsignarTema()
-  const [rechazando, setRechazando] = useState(false)
-  const [obs, setObs] = useState('')
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -112,22 +105,10 @@ function DetallePostulacion({ p, onClose }: { p: Postulacion; onClose: () => voi
               </AlertDescription>
             </Alert>
           )}
-          {rechazando && (
-            <Campo etiqueta="Motivo del rechazo" requerido>
-              {(pp) => <Textarea {...pp} value={obs} onChange={(e) => setObs(e.target.value)} />}
-            </Campo>
-          )}
         </div>
         <DialogFooter>
-          {p.estado === 'PENDIENTE' && !rechazando && (
-            <Button
-              onClick={() => aceptar.mutate(p.id, { onSuccess: onClose })}
-              disabled={aceptar.isPending}
-            >
-              <CheckIcon /> Aceptar
-            </Button>
-          )}
-          {p.estado === 'ACEPTADA' && !p.asignacionVigenteId && !rechazando && (
+          {/* En el backend asignar el tema acepta la postulación y rechaza las demás del tema */}
+          {p.estado === 'PENDIENTE' && !p.asignacionVigenteId && (
             <Button
               onClick={() => asignar.mutate({ postulacionId: p.id }, { onSuccess: onClose })}
               disabled={asignar.isPending}
@@ -140,23 +121,6 @@ function DetallePostulacion({ p, onClose }: { p: Postulacion; onClose: () => voi
               <Link to={`/admin/asignaciones/${p.asignacionVigenteId}`}>Ver asignación</Link>
             </Button>
           )}
-          {['PENDIENTE', 'EN_CONFLICTO', 'ACEPTADA'].includes(p.estado) &&
-            !p.asignacionVigenteId &&
-            (rechazando ? (
-              <Button
-                variant="destructive"
-                disabled={!obs.trim() || rechazar.isPending}
-                onClick={() =>
-                  rechazar.mutate({ id: p.id, observacion: obs }, { onSuccess: onClose })
-                }
-              >
-                Confirmar rechazo
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => setRechazando(true)}>
-                <XIcon /> Rechazar
-              </Button>
-            ))}
         </DialogFooter>
       </DialogContent>
     </Dialog>

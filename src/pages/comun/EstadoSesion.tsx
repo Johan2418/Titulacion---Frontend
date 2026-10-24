@@ -21,7 +21,7 @@ export function EstadoSesion({ tipo }: { tipo: 'no-registrado' | 'no-disponible'
           </h1>
           <CardDescription>
             {noRegistrado
-              ? 'Ingresaste con tu cuenta institucional, pero aún no tienes un perfil en el sistema de titulación. Contacta al responsable de titulación para que te habilite.'
+              ? 'Tu cuenta existe, pero aún no tiene un perfil válido en el sistema de titulación. Contacta al responsable de titulación para que te habilite.'
               : 'El servicio de autenticación no está disponible en este momento. Intenta nuevamente en unos minutos.'}
           </CardDescription>
         </CardHeader>

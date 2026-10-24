@@ -1,7 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/api/client'
+import { api, noDisponible, oNulo } from '@/api/client'
+import {
+  documentoPat,
+  estudianteResumen,
+  plantilla,
+  type AsignacionTemaB,
+  type DocumentoPatB,
+  type PlantillaB,
+  type UrlFirmadaB,
+} from '@/api/adaptadores'
 import { K } from '@/api/claves'
-import { aFormData, descargarUrl, useMutacion } from '@/api/mutacion'
+import { descargarUrl, useMutacion } from '@/api/mutacion'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import type {
   DocumentoPat,
   EstadoDocumentoPat,
@@ -9,86 +19,157 @@ import type {
   ResultadoRevision,
 } from '@/types/dominio'
 
-interface UrlFirmada {
-  url: string
-  nombreArchivo: string
-  expiraEn: string
-}
-
 export const usePlantillas = (pid?: string) =>
   useQuery({
     queryKey: [...K.pat, 'plantillas', pid],
-    queryFn: () => api.get<PlantillaPat[]>(`/periodos/${pid}/plantillas-pat`),
+    queryFn: async () =>
+      (await api.todas<PlantillaB>(`/periodos/${pid}/plantillas-pat`)).map(plantilla),
     enabled: !!pid,
   })
 
 export const usePlantillaVigente = (pid?: string) =>
   useQuery({
     queryKey: [...K.pat, 'plantillas', pid, 'vigente'],
-    queryFn: () => api.get<PlantillaPat | null>(`/periodos/${pid}/plantillas-pat/vigente`),
+    queryFn: async () => {
+      const p = await oNulo(api.get<PlantillaB>(`/periodos/${pid}/plantillas-pat/vigente`))
+      return p ? plantilla(p) : null
+    },
     enabled: !!pid,
   })
 
+/** Al publicar una versión, el backend la deja como la única vigente del período. */
 export const useSubirPlantilla = (pid?: string) =>
   useMutacion({
-    fn: (b: {
+    fn: async (b: {
       archivo: File
       version: string
       activar: boolean
       fechaVigenciaInicio?: string
       fechaVigenciaFin?: string
-    }) => api.post<PlantillaPat>(`/periodos/${pid}/plantillas-pat`, aFormData(b)),
+    }): Promise<PlantillaPat> => {
+      const fd = new FormData()
+      fd.append('version', b.version)
+      fd.append('archivo', b.archivo)
+      return plantilla(await api.post<PlantillaB>(`/periodos/${pid}/plantillas-pat`, fd))
+    },
     invalida: [K.pat],
-    exito: 'Plantilla publicada.',
+    exito: 'Plantilla publicada. Es la vigente del período.',
   })
 
 export const useActivarPlantilla = () =>
-  useMutacion({
-    fn: (id: string) => api.post<PlantillaPat>(`/plantillas-pat/${id}/activar`),
+  useMutacion<PlantillaPat, string>({
+    fn: async () => noDisponible('Reactivar una versión anterior de la plantilla'),
     invalida: [K.pat],
-    exito: 'Plantilla activada. Es la única vigente del período.',
   })
 
-/** RNF-12: el backend devuelve una URL prefirmada de vigencia limitada. */
-export async function descargarPlantilla(id: string) {
-  const r = await api.get<UrlFirmada>(`/plantillas-pat/${id}/descarga`)
-  descargarUrl(r.url, r.nombreArchivo)
+/** RNF-12: el backend devuelve una URL prefirmada de vigencia limitada. Sin `id`, la vigente. */
+export async function descargarPlantilla(periodoId: string, id?: string, nombre?: string) {
+  const r = await api.get<UrlFirmadaB>(
+    `/periodos/${periodoId}/plantillas-pat/${id ? `${id}/descarga` : 'vigente/descarga'}`,
+  )
+  descargarUrl(r.url, nombre)
 }
 
-export async function descargarDocumentoPat(id: string) {
-  const r = await api.get<UrlFirmada>(`/documentos-pat/${id}/descarga`)
-  descargarUrl(r.url, r.nombreArchivo)
+export async function descargarDocumentoPat(
+  periodoId: string,
+  doc: Pick<DocumentoPat, 'id' | 'asignacionTemaId' | 'nombreArchivo'>,
+) {
+  const r = await api.get<UrlFirmadaB>(
+    `/periodos/${periodoId}/asignaciones-tema/${doc.asignacionTemaId}/documentos-pat/${doc.id}/descarga`,
+  )
+  descargarUrl(r.url, doc.nombreArchivo)
 }
 
-export const useDocumentosPat = (asignacionId?: string) =>
-  useQuery({
+const listarDocumentos = async (periodoId: string, asignacionId: string) =>
+  (
+    await api.todas<DocumentoPatB>(
+      `/periodos/${periodoId}/asignaciones-tema/${asignacionId}/documentos-pat`,
+    )
+  )
+    .map(documentoPat)
+    .sort((a, b) => b.version - a.version)
+
+export const useDocumentosPat = (asignacionId?: string) => {
+  const { periodoId } = usePeriodo()
+  return useQuery({
     queryKey: [...K.pat, 'documentos', asignacionId],
-    queryFn: () => api.get<DocumentoPat[]>(`/asignaciones-tema/${asignacionId}/documentos-pat`),
-    enabled: !!asignacionId,
+    queryFn: () => listarDocumentos(periodoId!, asignacionId!),
+    enabled: !!asignacionId && !!periodoId,
   })
+}
 
-export const useSubirPat = (asignacionId?: string) =>
-  useMutacion({
-    fn: (archivo: File) =>
-      api.post<DocumentoPat>(
-        `/asignaciones-tema/${asignacionId}/documentos-pat`,
-        aFormData({ archivo }),
-      ),
+/** El documento se vincula a la plantilla vigente del período. */
+export const useSubirPat = (asignacionId?: string) => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async (archivo: File) => {
+      const vigente = await api.get<PlantillaB>(`/periodos/${periodoId}/plantillas-pat/vigente`)
+      const fd = new FormData()
+      fd.append('plantilla_id', vigente.id)
+      fd.append('archivo', archivo)
+      return documentoPat(
+        await api.post<DocumentoPatB>(
+          `/periodos/${periodoId}/asignaciones-tema/${asignacionId}/documentos-pat`,
+          fd,
+        ),
+      )
+    },
     invalida: [K.pat, K.me, K.asignaciones],
     exito: (d) => `PAT versión ${d.version} cargado. Quedó pendiente de revisión.`,
   })
+}
 
+/** Bandeja de revisión: última versión del PAT de cada trabajo vigente del período. */
 export const useBandejaPat = (periodoId?: string, estado?: EstadoDocumentoPat | '') =>
   useQuery({
     queryKey: [...K.pat, 'bandeja', periodoId, estado],
-    queryFn: () => api.get<DocumentoPat[]>('/documentos-pat', { periodoId, estado }),
+    queryFn: async () => {
+      const asignaciones = await api.todas<AsignacionTemaB>(
+        `/periodos/${periodoId}/asignaciones-tema`,
+        { estado: 'VIGENTE' },
+      )
+      const docs = await Promise.all(
+        asignaciones.map(async (a) => {
+          const d = await oNulo(
+            api.get<DocumentoPatB>(
+              `/periodos/${periodoId}/asignaciones-tema/${a.id}/documentos-pat/ultima`,
+            ),
+          )
+          return d
+            ? {
+                ...documentoPat(d),
+                tema: a.tema,
+                integrantes: a.participantes.map(estudianteResumen),
+              }
+            : null
+        }),
+      )
+      return docs
+        .filter((d): d is NonNullable<typeof d> => !!d && (!estado || d.estado === estado))
+        .sort((a, b) => a.fechaCarga.localeCompare(b.fechaCarga))
+    },
     enabled: !!periodoId,
   })
 
-export const useRevisarPat = () =>
-  useMutacion({
-    fn: ({ id, ...b }: { id: string; resultado: ResultadoRevision; observaciones?: string }) =>
-      api.post<DocumentoPat>(`/documentos-pat/${id}/revision`, b),
+export const useRevisarPat = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: ({
+      id,
+      asignacionTemaId,
+      resultado,
+      observaciones,
+    }: {
+      id: string
+      asignacionTemaId: string
+      resultado: ResultadoRevision
+      observaciones?: string
+    }) =>
+      api.post<unknown>(
+        `/periodos/${periodoId}/asignaciones-tema/${asignacionTemaId}/documentos-pat/${id}/revision`,
+        { resultado, observaciones: observaciones?.trim() || undefined },
+      ),
     invalida: [K.pat, K.asignaciones, K.periodos],
     exito: 'Revisión registrada.',
   })
+}

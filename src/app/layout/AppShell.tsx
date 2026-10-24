@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { env } from '@/lib/env'
 import { ESTADO_PERIODO, ROL } from '@/lib/estados'
 import { cn } from '@/lib/utils'
 import { useTema } from '../tema'
@@ -157,11 +156,6 @@ export function AppShell() {
           <div className="min-w-0 flex-1">
             <SelectorPeriodo />
           </div>
-          {env.useMocks && (
-            <span className="hidden rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 sm:inline">
-              Datos simulados
-            </span>
-          )}
           <Button
             variant="ghost"
             size="icon"

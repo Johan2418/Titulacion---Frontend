@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { api } from '@/api/client'
+import { noDisponible } from '@/api/client'
 import { K } from '@/api/claves'
 import type { Auditoria, Paginado } from '@/types/dominio'
 
@@ -12,9 +12,11 @@ export interface FiltrosAuditoria {
   pageSize: number
 }
 
+/** El backend registra la auditoría pero aún no expone un endpoint de consulta. */
 export const useAuditoria = (f: FiltrosAuditoria) =>
-  useQuery({
+  useQuery<Paginado<Auditoria>>({
     queryKey: [...K.auditoria, f],
-    queryFn: () => api.get<Paginado<Auditoria>>('/auditoria', { ...f }),
+    queryFn: async () => noDisponible('La consulta de auditoría'),
     placeholderData: keepPreviousData,
+    retry: false,
   })

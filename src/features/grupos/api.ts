@@ -1,62 +1,100 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/api/client'
+import { api, oNulo } from '@/api/client'
+import { grupo, invitacion, type GrupoB, type InvitacionB } from '@/api/adaptadores'
 import { FLUJO, K } from '@/api/claves'
 import { useMutacion } from '@/api/mutacion'
-import type { Grupo, Invitacion } from '@/types/dominio'
+import { useUsuario } from '@/auth/AuthProvider'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 
 export const useMiGrupo = (periodoId?: string) =>
   useQuery({
     queryKey: [...K.grupos, 'mio', periodoId],
-    queryFn: () => api.get<Grupo | null>('/me/grupo', { periodoId }),
+    queryFn: async () => {
+      const g = await oNulo(api.get<GrupoB>(`/periodos/${periodoId}/grupos/me`))
+      return g ? grupo(g) : null
+    },
     enabled: !!periodoId,
   })
 
 export const useGrupos = (periodoId?: string) =>
   useQuery({
     queryKey: [...K.grupos, periodoId],
-    queryFn: () => api.get<Grupo[]>('/grupos', { periodoId }),
+    queryFn: async () => (await api.todas<GrupoB>(`/periodos/${periodoId}/grupos`)).map(grupo),
     enabled: !!periodoId,
   })
 
 export const useCrearGrupo = () =>
   useMutacion({
-    fn: (b: { periodoId: string; nombre: string }) => api.post<Grupo>('/grupos', b),
+    fn: async ({ periodoId, nombre }: { periodoId: string; nombre: string }) =>
+      grupo(await api.post<GrupoB>(`/periodos/${periodoId}/grupos`, { nombre })),
     invalida: FLUJO,
     exito: 'Grupo creado. Ahora eres su representante.',
   })
 
-export const useSalirGrupo = () =>
-  useMutacion({
-    fn: (grupoId: string) => api.post<void>(`/grupos/${grupoId}/salir`),
+/** El representante con otros integrantes activos disuelve el grupo; los demás salen. */
+export const useSalirGrupo = () => {
+  const { periodoId } = usePeriodo()
+  const { estudianteId } = useUsuario()
+  return useMutacion({
+    fn: async (grupoId: string) => {
+      const base = `/periodos/${periodoId}/grupos/${grupoId}`
+      const g = await api.get<GrupoB>(base)
+      const activos = g.integrantes.filter((i) => i.estado === 'ACTIVO')
+      const representante = activos.some(
+        (i) => i.estudiante.id === estudianteId && i.rolEnGrupo === 'REPRESENTANTE',
+      )
+      if (representante && activos.length > 1)
+        await api.post(`${base}/disolver`, { motivo: 'Disuelto por el representante del grupo.' })
+      else await api.post(`${base}/salir`, { motivo: 'Salida voluntaria del grupo.' })
+    },
     invalida: FLUJO,
     exito: 'Saliste del grupo.',
   })
+}
 
-export const useInvitacionesGrupo = (grupoId?: string) =>
-  useQuery({
+export const useInvitacionesGrupo = (grupoId?: string) => {
+  const { periodoId } = usePeriodo()
+  return useQuery({
     queryKey: [...K.invitaciones, 'grupo', grupoId],
-    queryFn: () => api.get<Invitacion[]>(`/grupos/${grupoId}/invitaciones`),
-    enabled: !!grupoId,
+    queryFn: async () =>
+      (await api.todas<InvitacionB>(`/periodos/${periodoId}/grupos/${grupoId}/invitaciones`)).map(
+        invitacion,
+      ),
+    enabled: !!grupoId && !!periodoId,
   })
+}
 
-export const useMisInvitaciones = () =>
-  useQuery({
-    queryKey: [...K.invitaciones, 'mias'],
-    queryFn: () => api.get<Invitacion[]>('/me/invitaciones'),
+export const useMisInvitaciones = () => {
+  const { periodoId } = usePeriodo()
+  return useQuery({
+    queryKey: [...K.invitaciones, 'mias', periodoId],
+    queryFn: async () =>
+      (await api.todas<InvitacionB>(`/periodos/${periodoId}/invitaciones/me`)).map(invitacion),
+    enabled: !!periodoId,
   })
+}
 
-export const useInvitar = () =>
-  useMutacion({
-    fn: ({ grupoId, estudianteId }: { grupoId: string; estudianteId: string }) =>
-      api.post<Invitacion>(`/grupos/${grupoId}/invitaciones`, { estudianteId }),
+export const useInvitar = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({ grupoId, estudianteId }: { grupoId: string; estudianteId: string }) =>
+      invitacion(
+        await api.post<InvitacionB>(`/periodos/${periodoId}/grupos/${grupoId}/invitaciones`, {
+          estudianteDestinoId: estudianteId,
+        }),
+      ),
     invalida: [K.invitaciones, K.habilitados],
     exito: 'Invitación enviada.',
   })
+}
 
-export const useResponderInvitacion = () =>
-  useMutacion({
-    fn: ({ id, accion }: { id: string; accion: 'aceptar' | 'rechazar' | 'cancelar' }) =>
-      api.post<Invitacion>(`/invitaciones/${id}/${accion}`),
+export const useResponderInvitacion = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({ id, accion }: { id: string; accion: 'aceptar' | 'rechazar' | 'cancelar' }) =>
+      invitacion(
+        await api.post<InvitacionB>(`/periodos/${periodoId}/invitaciones/${id}/${accion}`, {}),
+      ),
     invalida: FLUJO,
     exito: (_r, v) =>
       ({
@@ -65,3 +103,4 @@ export const useResponderInvitacion = () =>
         cancelar: 'Invitación cancelada.',
       })[v.accion],
   })
+}

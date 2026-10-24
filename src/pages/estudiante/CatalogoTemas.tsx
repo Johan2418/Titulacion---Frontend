@@ -9,9 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useDocentes, useLineas } from '@/features/catalogos/api'
+import { useLineas } from '@/features/catalogos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { useTemas } from '@/features/temas/api'
+import { useProponentes, useTemas } from '@/features/temas/api'
 import { nombreCompleto } from '@/lib/utils'
 import { DisponibilidadTema } from './componentes'
 
@@ -24,7 +24,7 @@ export default function CatalogoTemas() {
   const [disponible, setDisponible] = useState(true)
   const [texto, setTexto] = useState('')
   const lineas = useLineas()
-  const docentes = useDocentes()
+  const docentes = useProponentes(periodoId)
   const query = useTemas({
     periodoId,
     lineaId,

@@ -8,10 +8,12 @@ import { ESTADO_PAT } from '@/lib/estados'
 import { mensajeError } from '@/lib/errores'
 import { formatoBytes, nombreCompleto } from '@/lib/utils'
 import type { DocumentoPat } from '@/types/dominio'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { descargarDocumentoPat } from './api'
 
 /** Línea de tiempo de versiones del PAT con su revisión (RF-14, RF-32). */
 export function HistorialVersionesPat({ documentos }: { documentos: DocumentoPat[] }) {
+  const { periodoId } = usePeriodo()
   if (!documentos.length) return <Vacio titulo="Aún no hay versiones cargadas" />
   return (
     <ol className="relative space-y-4 border-l pl-6">
@@ -27,7 +29,9 @@ export function HistorialVersionesPat({ documentos }: { documentos: DocumentoPat
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => descargarDocumentoPat(d.id).catch((e) => toast.error(mensajeError(e)))}
+              onClick={() =>
+                descargarDocumentoPat(periodoId!, d).catch((e) => toast.error(mensajeError(e)))
+              }
               aria-label={`Descargar versión ${d.version}`}
             >
               <DownloadIcon /> {d.nombreArchivo}

@@ -25,7 +25,6 @@ function ConPeriodo() {
 
 export const rutas = [
   { path: '/login', element: perezosa(() => import('@/pages/comun/Login')) },
-  { path: '/auth/callback', element: perezosa(() => import('@/pages/comun/AuthCallback')) },
   {
     element: <RequiereSesion />,
     children: [

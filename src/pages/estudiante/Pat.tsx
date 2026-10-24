@@ -56,7 +56,9 @@ export default function Pat() {
                     <Button
                       variant="outline"
                       onClick={() =>
-                        descargarPlantilla(p.id).catch((e) => toast.error(mensajeError(e)))
+                        descargarPlantilla(periodoId!, undefined, p.nombreArchivo).catch((e) =>
+                          toast.error(mensajeError(e)),
+                        )
                       }
                     >
                       <DownloadIcon /> Descargar plantilla

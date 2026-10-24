@@ -1,14 +1,26 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, configurarCliente } from '@/api/client'
-import { env } from '@/lib/env'
+import { configurarCliente } from '@/api/client'
 import type { SesionUsuario } from '@/types/dominio'
+import {
+  cargarPerfil as pedirPerfil,
+  descartarToken,
+  establecerClaveInicial,
+  hayToken,
+  ingresar,
+  renovar,
+  salir,
+  tokenActual,
+} from './backend'
 import { clasificarFalloPerfil, esPerfilCompleto, type FalloPerfil } from './sesion'
 
-const CLAVE_TOKEN_MOCK = 'titulacion.mockToken'
-
 export type EstadoSesion =
-  'cargando' | 'autenticado' | 'anonimo' | Exclude<FalloPerfil, 'sin-sesion'>
+  | 'cargando'
+  | 'autenticado'
+  | 'anonimo'
+  /** Ingresó con la clave temporal: debe fijar su contraseña personal. */
+  | 'cambio-clave'
+  | Exclude<FalloPerfil, 'sin-sesion'>
 
 export const AVISO_SESION_EXPIRADA = 'Tu sesión expiró o no es válida. Vuelve a ingresar.'
 
@@ -17,41 +29,26 @@ interface AuthContexto {
   usuario: SesionUsuario | null
   /** Mensaje para la pantalla de ingreso (p. ej. sesión expirada). */
   aviso: string | null
-  /** En modo mock recibe el id del usuario demo; en OIDC redirige al proveedor. */
-  iniciarSesion: (usuarioIdMock?: string) => Promise<void>
+  /** Ingreso con correo y contraseña. Lanza ApiError si las credenciales no son válidas. */
+  iniciarSesion: (email: string, password: string) => Promise<void>
+  /** Primer acceso: fija la contraseña personal y vuelve a ingresar con ella. */
+  cambiarClaveInicial: (password: string) => Promise<void>
   cerrarSesion: () => Promise<void>
-  completarCallback: () => Promise<void>
   /** Vuelve a consultar el perfil (p. ej. tras un 503). */
   reintentar: () => Promise<void>
 }
 
 const Ctx = createContext<AuthContexto | null>(null)
 
-async function tokenActual(): Promise<string | null> {
-  if (env.useMocks) return sessionStorage.getItem(CLAVE_TOKEN_MOCK)
-  const { oidcManager } = await import('./oidc')
-  const user = await oidcManager().getUser()
-  return user && !user.expired ? user.access_token : null
-}
-
-/** Descarta el token local sin cerrar la sesión en el proveedor. */
-async function descartarToken() {
-  if (env.useMocks) {
-    sessionStorage.removeItem(CLAVE_TOKEN_MOCK)
-    return
-  }
-  const { oidcManager } = await import('./oidc')
-  await oidcManager().removeUser()
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [estado, setEstado] = useState<EstadoSesion>('cargando')
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [emailPrimerAcceso, setEmailPrimerAcceso] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const sesionInvalida = useCallback(async () => {
-    await descartarToken()
+  const sesionInvalida = useCallback(() => {
+    descartarToken()
     queryClient.clear()
     setUsuario(null)
     setAviso(AVISO_SESION_EXPIRADA)
@@ -59,14 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient])
 
   const cargarPerfil = useCallback(async () => {
-    const token = await tokenActual()
-    if (!token) {
+    if (!hayToken()) {
       setUsuario(null)
       setEstado('anonimo')
       return
     }
     try {
-      const me = await api.get<unknown>('/auth/me')
+      const me = await pedirPerfil()
       if (!esPerfilCompleto(me)) {
         setUsuario(null)
         setEstado('no-registrado')
@@ -78,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       const fallo = clasificarFalloPerfil(e)
       setUsuario(null)
-      if (fallo === 'sin-sesion') await sesionInvalida()
+      if (fallo === 'sin-sesion') sesionInvalida()
       else setEstado(fallo)
     }
   }, [sesionInvalida])
@@ -86,34 +82,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     configurarCliente({
       obtenerToken: tokenActual,
-      // RNF-18: un 401 en cualquier petición invalida la sesión local
-      alNoAutorizado: () => void sesionInvalida(),
+      // RNF-18: un 401 que no se resuelve renovando invalida la sesión local
+      alNoAutorizado: sesionInvalida,
+      renovarSesion: renovar,
     })
-    if (window.location.pathname !== '/auth/callback') void cargarPerfil()
+    // al recargar no hay token en memoria: se intenta recuperar con la cookie de renovación
+    void renovar().then(cargarPerfil)
   }, [cargarPerfil, sesionInvalida])
 
   const iniciarSesion = useCallback(
-    async (usuarioIdMock?: string) => {
+    async (email: string, password: string) => {
       setAviso(null)
-      if (env.useMocks) {
-        if (!usuarioIdMock) return
-        sessionStorage.setItem(CLAVE_TOKEN_MOCK, `mock:${usuarioIdMock}`)
-        queryClient.clear()
-        setEstado('cargando')
-        await cargarPerfil()
+      const { requiereCambioClave } = await ingresar(email, password)
+      queryClient.clear()
+      if (requiereCambioClave) {
+        setEmailPrimerAcceso(email)
+        setEstado('cambio-clave')
         return
       }
-      const { oidcManager } = await import('./oidc')
-      await oidcManager().signinRedirect()
+      setEstado('cargando')
+      await cargarPerfil()
     },
     [cargarPerfil, queryClient],
   )
 
-  const completarCallback = useCallback(async () => {
-    const { oidcManager } = await import('./oidc')
-    await oidcManager().signinRedirectCallback()
-    await cargarPerfil()
-  }, [cargarPerfil])
+  const cambiarClaveInicial = useCallback(
+    async (password: string) => {
+      await establecerClaveInicial(password)
+      const email = emailPrimerAcceso
+      setEmailPrimerAcceso(null)
+      if (!email) {
+        setEstado('anonimo')
+        return
+      }
+      await iniciarSesion(email, password)
+    },
+    [emailPrimerAcceso, iniciarSesion],
+  )
 
   const reintentar = useCallback(async () => {
     setEstado('cargando')
@@ -124,18 +129,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear()
     setUsuario(null)
     setAviso(null)
+    setEmailPrimerAcceso(null)
     setEstado('anonimo')
-    if (env.useMocks) {
-      sessionStorage.removeItem(CLAVE_TOKEN_MOCK)
-      return
-    }
-    const { oidcManager } = await import('./oidc')
-    await oidcManager().signoutRedirect()
+    await salir().catch(() => descartarToken())
   }, [queryClient])
 
   const valor = useMemo(
-    () => ({ estado, usuario, aviso, iniciarSesion, cerrarSesion, completarCallback, reintentar }),
-    [estado, usuario, aviso, iniciarSesion, cerrarSesion, completarCallback, reintentar],
+    () => ({
+      estado,
+      usuario,
+      aviso,
+      iniciarSesion,
+      cambiarClaveInicial,
+      cerrarSesion,
+      reintentar,
+    }),
+    [estado, usuario, aviso, iniciarSesion, cambiarClaveInicial, cerrarSesion, reintentar],
   )
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>
 }

@@ -1,131 +1,285 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
-import { GraduationCapIcon, InfoIcon, LogInIcon, RotateCcwIcon } from 'lucide-react'
-import { api } from '@/api/client'
+import { GraduationCapIcon, InfoIcon, KeyRoundIcon, LogInIcon } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
+import { restablecerClave, solicitarRecuperacion } from '@/auth/backend'
 import { RUTA_INICIO } from '@/auth/RoleGuard'
-import { ConsultaEstado } from '@/components/Estados'
+import { Campo } from '@/components/Campo'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { env } from '@/lib/env'
-import { ROL } from '@/lib/estados'
-import type { SesionUsuario } from '@/types/dominio'
+import { Input } from '@/components/ui/input'
+import { mensajeError } from '@/lib/errores'
 
-type UsuarioDemo = SesionUsuario & { escenario: string }
+/** Límites de la contraseña personal definidos por el backend. */
+const CLAVE_MIN = 15
+const CLAVE_MAX = 128
 
-/** Escenarios de autenticación que reproducen las respuestas posibles del backend. */
-const ESCENARIOS_AUTH = [
-  {
-    id: 'no-registrado',
-    titulo: 'Cuenta no registrada',
-    detalle: '/auth/me responde 403 USUARIO_NO_REGISTRADO',
-  },
-  {
-    id: 'solo-identidad',
-    titulo: 'Solo identidad verificada',
-    detalle: '/auth/me responde { subject, issuer } sin rol',
-  },
-  { id: 'auth-caida', titulo: 'Autenticación no disponible', detalle: '/auth/me responde 503' },
-]
+type Vista = 'ingreso' | 'recuperar' | 'restablecer'
 
-function LoginMock() {
+function validarClave(clave: string, confirmacion: string) {
+  if (clave.length < CLAVE_MIN || clave.length > CLAVE_MAX)
+    return `La contraseña debe tener entre ${CLAVE_MIN} y ${CLAVE_MAX} caracteres.`
+  if (clave !== confirmacion) return 'Las contraseñas no coinciden.'
+  return null
+}
+
+function useEnvio() {
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const enviar = async (fn: () => Promise<void>) => {
+    setEnviando(true)
+    setError(null)
+    try {
+      await fn()
+    } catch (e) {
+      setError(mensajeError(e))
+    } finally {
+      setEnviando(false)
+    }
+  }
+  return { enviando, error, setError, enviar }
+}
+
+function ErrorFormulario({ error }: { error: string | null }) {
+  if (!error) return null
+  return (
+    <Alert variant="destructive" role="alert">
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  )
+}
+
+function FormIngreso({ alRecuperar }: { alRecuperar: () => void }) {
   const { iniciarSesion } = useAuth()
-  const [entrando, setEntrando] = useState<string | null>(null)
-  const query = useQuery({
-    queryKey: ['usuarios-demo'],
-    queryFn: () => api.get<UsuarioDemo[]>('/auth/usuarios-demo'),
-  })
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const { enviando, error, enviar } = useEnvio()
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    void enviar(() => iniciarSesion(email.trim(), password))
+  }
   return (
     <>
       <CardHeader>
-        <CardTitle>Ingreso simulado</CardTitle>
-        <CardDescription>
-          Modo de desarrollo con datos simulados. Elija un usuario para probar cada rol; en
-          producción el ingreso se realiza con el servicio de autenticación institucional.
-        </CardDescription>
+        <CardTitle>Iniciar sesión</CardTitle>
+        <CardDescription>Ingrese con su correo institucional y su contraseña.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <ConsultaEstado query={query} filas={6}>
-          {(usuarios) => (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {usuarios.map((u) => (
-                <li key={u.id}>
-                  <button
-                    type="button"
-                    disabled={!!entrando}
-                    onClick={async () => {
-                      setEntrando(u.id)
-                      await iniciarSesion(u.id)
-                    }}
-                    className="flex h-full w-full flex-col items-start gap-1 rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                  >
-                    <span className="flex w-full items-center justify-between gap-2">
-                      <span className="font-medium">
-                        {u.nombres} {u.apellidos}
-                      </span>
-                      <Badge tono={ROL[u.rol].tono}>{ROL[u.rol].label}</Badge>
-                    </span>
-                    <span className="text-xs text-muted-foreground">{u.escenario}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </ConsultaEstado>
-        <details className="rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">
-            Escenarios de autenticación
-          </summary>
-          <ul className="mt-2 grid gap-2 sm:grid-cols-3">
-            {ESCENARIOS_AUTH.map((e) => (
-              <li key={e.id}>
-                <button
-                  type="button"
-                  disabled={!!entrando}
-                  onClick={async () => {
-                    setEntrando(e.id)
-                    await iniciarSesion(e.id)
-                    setEntrando(null)
-                  }}
-                  className="flex h-full w-full flex-col items-start gap-1 rounded-md border bg-card p-2 text-left text-sm hover:border-primary hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                >
-                  <span className="font-medium">{e.titulo}</span>
-                  <span className="text-xs text-muted-foreground">{e.detalle}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={async () => {
-            await api.post('/mock/reiniciar')
-            window.location.reload()
-          }}
-        >
-          <RotateCcwIcon /> Restablecer datos simulados
-        </Button>
+      <CardContent>
+        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+          <ErrorFormulario error={error} />
+          <Campo etiqueta="Correo institucional" requerido>
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            )}
+          </Campo>
+          <Campo etiqueta="Contraseña" requerido>
+            {(p) => (
+              <Input
+                {...p}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            )}
+          </Campo>
+          <Button className="w-full" size="lg" disabled={enviando || !email || !password}>
+            <LogInIcon /> {enviando ? 'Ingresando…' : 'Ingresar'}
+          </Button>
+          <Button type="button" variant="link" className="w-full" onClick={alRecuperar}>
+            ¿Olvidó su contraseña?
+          </Button>
+        </form>
       </CardContent>
     </>
   )
 }
 
-function LoginOidc() {
-  const { iniciarSesion } = useAuth()
+function CamposNuevaClave({
+  clave,
+  confirmacion,
+  setClave,
+  setConfirmacion,
+}: {
+  clave: string
+  confirmacion: string
+  setClave: (v: string) => void
+  setConfirmacion: (v: string) => void
+}) {
+  return (
+    <>
+      <Campo
+        etiqueta="Nueva contraseña"
+        requerido
+        ayuda={`Entre ${CLAVE_MIN} y ${CLAVE_MAX} caracteres.`}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            type="password"
+            autoComplete="new-password"
+            value={clave}
+            onChange={(e) => setClave(e.target.value)}
+            required
+          />
+        )}
+      </Campo>
+      <Campo etiqueta="Confirmar contraseña" requerido>
+        {(p) => (
+          <Input
+            {...p}
+            type="password"
+            autoComplete="new-password"
+            value={confirmacion}
+            onChange={(e) => setConfirmacion(e.target.value)}
+            required
+          />
+        )}
+      </Campo>
+    </>
+  )
+}
+
+/** Primer acceso con la clave temporal recibida por correo. */
+function FormClaveInicial() {
+  const { cambiarClaveInicial, cerrarSesion } = useAuth()
+  const [clave, setClave] = useState('')
+  const [confirmacion, setConfirmacion] = useState('')
+  const { enviando, error, setError, enviar } = useEnvio()
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const invalida = validarClave(clave, confirmacion)
+    if (invalida) return setError(invalida)
+    void enviar(() => cambiarClaveInicial(clave))
+  }
   return (
     <>
       <CardHeader>
-        <CardTitle>Iniciar sesión</CardTitle>
-        <CardDescription>Use su cuenta institucional para ingresar al sistema.</CardDescription>
+        <CardTitle>Establezca su contraseña</CardTitle>
+        <CardDescription>
+          Ingresó con una clave temporal. Defina su contraseña personal para continuar.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button className="w-full" size="lg" onClick={() => void iniciarSesion()}>
-          <LogInIcon /> Ingresar con cuenta institucional
-        </Button>
+        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+          <ErrorFormulario error={error} />
+          <CamposNuevaClave {...{ clave, confirmacion, setClave, setConfirmacion }} />
+          <Button className="w-full" size="lg" disabled={enviando}>
+            <KeyRoundIcon /> {enviando ? 'Guardando…' : 'Guardar y continuar'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => void cerrarSesion()}
+          >
+            Cancelar
+          </Button>
+        </form>
+      </CardContent>
+    </>
+  )
+}
+
+function FormRecuperar({ alEnviar, alVolver }: { alEnviar: () => void; alVolver: () => void }) {
+  const [email, setEmail] = useState('')
+  const { enviando, error, enviar } = useEnvio()
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    void enviar(async () => {
+      await solicitarRecuperacion(email.trim())
+      alEnviar()
+    })
+  }
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>Recuperar acceso</CardTitle>
+        <CardDescription>
+          Si existe una cuenta activa con su correo, recibirá un código para restablecer la
+          contraseña.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+          <ErrorFormulario error={error} />
+          <Campo etiqueta="Correo institucional" requerido>
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            )}
+          </Campo>
+          <Button className="w-full" disabled={enviando || !email}>
+            {enviando ? 'Enviando…' : 'Enviar código'}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={alVolver}>
+            Volver al ingreso
+          </Button>
+        </form>
+      </CardContent>
+    </>
+  )
+}
+
+function FormRestablecer({ alTerminar }: { alTerminar: (aviso: string) => void }) {
+  const [codigo, setCodigo] = useState('')
+  const [clave, setClave] = useState('')
+  const [confirmacion, setConfirmacion] = useState('')
+  const { enviando, error, setError, enviar } = useEnvio()
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const invalida = validarClave(clave, confirmacion)
+    if (invalida) return setError(invalida)
+    void enviar(async () => {
+      await restablecerClave(codigo.trim(), clave)
+      alTerminar('Contraseña restablecida. Ingrese con su nueva contraseña.')
+    })
+  }
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>Restablecer contraseña</CardTitle>
+        <CardDescription>
+          Escriba el código recibido por correo y su nueva contraseña.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+          <ErrorFormulario error={error} />
+          <Campo etiqueta="Código" requerido>
+            {(p) => (
+              <Input
+                {...p}
+                autoComplete="one-time-code"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                required
+              />
+            )}
+          </Campo>
+          <CamposNuevaClave {...{ clave, confirmacion, setClave, setConfirmacion }} />
+          <Button className="w-full" disabled={enviando || !codigo}>
+            {enviando ? 'Guardando…' : 'Restablecer contraseña'}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => alTerminar('')}>
+            Volver al ingreso
+          </Button>
+        </form>
       </CardContent>
     </>
   )
@@ -133,11 +287,14 @@ function LoginOidc() {
 
 export default function Login() {
   const { estado, usuario, aviso } = useAuth()
+  const [vista, setVista] = useState<Vista>('ingreso')
+  const [mensaje, setMensaje] = useState<string | null>(null)
   if (estado === 'autenticado' && usuario) return <Navigate to={RUTA_INICIO[usuario.rol]} replace />
   if (estado === 'no-registrado' || estado === 'no-disponible') return <Navigate to="/" replace />
+  const avisoVisible = mensaje || aviso
   return (
     <main className="flex min-h-svh items-center justify-center bg-gradient-to-br from-sidebar to-primary p-4">
-      <div className="w-full max-w-3xl space-y-6">
+      <div className="w-full max-w-md space-y-6">
         <div className="flex items-center justify-center gap-3 text-white">
           <GraduationCapIcon className="size-10" aria-hidden />
           <div>
@@ -145,14 +302,33 @@ export default function Login() {
             <p className="text-sm opacity-90">Asignación de temas, tutores y PAT</p>
           </div>
         </div>
-        {aviso && (
-          <Alert variant="warning" className={env.useMocks ? '' : 'mx-auto max-w-md'}>
+        {avisoVisible && (
+          <Alert variant="warning">
             <InfoIcon />
-            <AlertDescription>{aviso}</AlertDescription>
+            <AlertDescription>{avisoVisible}</AlertDescription>
           </Alert>
         )}
-        <Card className={env.useMocks ? '' : 'mx-auto max-w-md'}>
-          {env.useMocks ? <LoginMock /> : <LoginOidc />}
+        <Card>
+          {estado === 'cambio-clave' ? (
+            <FormClaveInicial />
+          ) : vista === 'recuperar' ? (
+            <FormRecuperar
+              alEnviar={() => {
+                setMensaje('Si la cuenta existe, se envió un código a su correo.')
+                setVista('restablecer')
+              }}
+              alVolver={() => setVista('ingreso')}
+            />
+          ) : vista === 'restablecer' ? (
+            <FormRestablecer
+              alTerminar={(m) => {
+                setMensaje(m || null)
+                setVista('ingreso')
+              }}
+            />
+          ) : (
+            <FormIngreso alRecuperar={() => setVista('recuperar')} />
+          )}
         </Card>
       </div>
     </main>
