@@ -197,6 +197,8 @@ export interface ConfigCargaB {
   docenteId: UUID | null
   maxTrabajos: number
   bloquearAlSuperar: boolean
+  /** false: límite específico desactivado (historial). */
+  activa?: boolean
 }
 
 export interface CargaActualB {
@@ -530,6 +532,8 @@ export const plantilla = (p: PlantillaB): PlantillaPat => ({
   fechaVigenciaFin: p.fechaVigenciaFin,
   publicadaPor: persona(p.publicador),
   activa: p.activa,
+  // El backend no expone fecha de creación: publicar fija `fecha_vigencia_inicio` al día de la
+  // publicación, así que es la fecha (sin hora) en que se publicó la versión.
   creadoEn: p.fechaVigenciaInicio ?? '',
 })
 

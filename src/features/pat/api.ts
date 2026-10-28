@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, noDisponible, oNulo } from '@/api/client'
+import { api, oNulo } from '@/api/client'
 import {
   documentoPat,
   estudianteResumen,
@@ -37,16 +37,13 @@ export const usePlantillaVigente = (pid?: string) =>
     enabled: !!pid,
   })
 
-/** Al publicar una versión, el backend la deja como la única vigente del período. */
+/**
+ * Al publicar una versión, el backend la deja como la única vigente del período desde hoy y
+ * cierra la vigencia de la anterior. Solo recibe versión y archivo (sin fechas de vigencia).
+ */
 export const useSubirPlantilla = (pid?: string) =>
   useMutacion({
-    fn: async (b: {
-      archivo: File
-      version: string
-      activar: boolean
-      fechaVigenciaInicio?: string
-      fechaVigenciaFin?: string
-    }): Promise<PlantillaPat> => {
+    fn: async (b: { archivo: File; version: string }): Promise<PlantillaPat> => {
       const fd = new FormData()
       fd.append('version', b.version)
       fd.append('archivo', b.archivo)
@@ -54,12 +51,6 @@ export const useSubirPlantilla = (pid?: string) =>
     },
     invalida: [K.pat],
     exito: 'Plantilla publicada. Es la vigente del período.',
-  })
-
-export const useActivarPlantilla = () =>
-  useMutacion<PlantillaPat, string>({
-    fn: async () => noDisponible('Reactivar una versión anterior de la plantilla'),
-    invalida: [K.pat],
   })
 
 /** RNF-12: el backend devuelve una URL prefirmada de vigencia limitada. Sin `id`, la vigente. */

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, noDisponible, type Pagina } from '@/api/client'
+import { api, type Pagina } from '@/api/client'
 import {
   cargaDocente,
   configCarga,
@@ -402,10 +402,16 @@ export const useGuardarConfigCarga = (pid?: string) =>
     exito: 'Configuración de carga guardada.',
   })
 
-export const useEliminarConfigCarga = () =>
-  useMutacion<void, string>({
-    fn: async () => noDisponible('La eliminación de un límite específico'),
+/**
+ * El backend no borra límites: el específico se desactiva (queda como historial) y el docente
+ * vuelve a regirse por el límite global del período.
+ */
+export const useDesactivarConfigCarga = (pid?: string) =>
+  useMutacion({
+    fn: (id: string) =>
+      api.post<ConfigCargaB>(`/periodos/${pid}/config-carga-tutorial/${id}/desactivar`),
     invalida: [K.carga],
+    exito: 'Límite específico desactivado; el docente vuelve al límite global.',
   })
 
 export const useCargaTutorial = (pid?: string) =>
