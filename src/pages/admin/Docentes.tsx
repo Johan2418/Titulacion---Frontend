@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PencilIcon, PlusIcon, UploadIcon } from 'lucide-react'
-import { Campo } from '@/components/Campo'
+import { DownloadIcon, MailIcon, PencilIcon, PlusIcon, UploadIcon } from 'lucide-react'
+import { toast } from 'sonner'
+import { Campo, SelectSimple } from '@/components/Campo'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -17,15 +18,24 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { mensajeError } from '@/lib/errores'
 import {
+  descargarPlantillaDocentes,
   useDocentes,
   useGuardarDocente,
   useImportarDocentes,
+  useReenviarAcceso,
   type DocenteInput,
 } from '@/features/catalogos/api'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { TIPOS_IMPORTACION } from '@/lib/archivos'
 import { nombreCompleto } from '@/lib/utils'
-import type { Docente } from '@/types/dominio'
+import type { Docente, EstadoUsuario } from '@/types/dominio'
+
+const TIPOS_XLSX = { xlsx: TIPOS_IMPORTACION.xlsx }
+const COLUMNAS_IMPORTACION =
+  'cedula, nombres, apellidos, email, titulo, departamento, habilitado_tutoria'
 
 function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: () => void }) {
   const [d, setD] = useState<DocenteInput>({
@@ -37,6 +47,7 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
     departamento: docente?.departamento ?? '',
     habilitadoTutoria: docente?.habilitadoTutoria ?? true,
   })
+  const [estado, setEstado] = useState<EstadoUsuario>(docente?.estado ?? 'ACTIVO')
   const guardar = useGuardarDocente()
   const errores = {
     cedula: !/^\d{10}$/.test(d.cedula) ? 'La cédula debe tener 10 dígitos.' : undefined,
@@ -55,19 +66,11 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
         e.preventDefault()
         setIntentado(true)
         if (!valido) return
-        guardar.mutate(docente ? { id: docente.id, ...d } : d, { onSuccess: onClose })
+        guardar.mutate(docente ? { id: docente.id, ...d, estado } : d, { onSuccess: onClose })
       }}
     >
       <Campo etiqueta="Cédula" requerido error={intentado ? errores.cedula : undefined}>
-        {(p) => (
-          <Input
-            {...p}
-            value={d.cedula}
-            onChange={set('cedula')}
-            disabled={!!docente}
-            inputMode="numeric"
-          />
-        )}
+        {(p) => <Input {...p} value={d.cedula} onChange={set('cedula')} inputMode="numeric" />}
       </Campo>
       <Campo
         etiqueta="Correo institucional"
@@ -78,6 +81,11 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
           <Input {...p} type="email" value={d.email} onChange={set('email')} disabled={!!docente} />
         )}
       </Campo>
+      {docente && (
+        <p className="text-xs text-muted-foreground sm:col-span-2 -mt-2">
+          El correo es el usuario de acceso y no se puede modificar.
+        </p>
+      )}
       <Campo etiqueta="Nombres" requerido>
         {(p) => <Input {...p} value={d.nombres} onChange={set('nombres')} />}
       </Campo>
@@ -98,6 +106,29 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
         />
         <Label htmlFor="hab-tutoria">Habilitado para tutoría</Label>
       </div>
+      {docente && (
+        <Campo etiqueta="Estado de la cuenta" className="space-y-1.5 sm:col-span-2">
+          {(p) => (
+            <>
+              <SelectSimple
+                {...p}
+                value={estado}
+                onChange={(v) => setEstado(v as EstadoUsuario)}
+                opciones={[
+                  { value: 'ACTIVO', label: 'Activa' },
+                  { value: 'INACTIVO', label: 'Inactiva' },
+                ]}
+              />
+              {estado === 'INACTIVO' && docente.estado === 'ACTIVO' && (
+                <p className="text-xs text-muted-foreground">
+                  El docente no podrá ingresar y se cerrarán sus sesiones. Sus tutorías y
+                  asignaciones vigentes no cambian.
+                </p>
+              )}
+            </>
+          )}
+        </Campo>
+      )}
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancelar
@@ -115,6 +146,7 @@ export default function Docentes() {
   const query = useDocentes()
   const guardar = useGuardarDocente()
   const importar = useImportarDocentes()
+  const reenviar = useReenviarAcceso()
   const [editando, setEditando] = useState<Docente | null | 'nuevo'>(null)
   const [importando, setImportando] = useState(false)
 
@@ -154,14 +186,32 @@ export default function Docentes() {
       id: 'acciones',
       header: () => <span className="sr-only">Acciones</span>,
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setEditando(row.original)}
-          aria-label={`Editar ${nombreCompleto(row.original)}`}
-        >
-          <PencilIcon />
-        </Button>
+        <div className="flex justify-end gap-1">
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Reenviar acceso a ${nombreCompleto(row.original)}`}
+                title="Reenviar acceso"
+              >
+                <MailIcon />
+              </Button>
+            }
+            titulo="Reenviar acceso"
+            descripcion={`Se generará una nueva clave temporal y se enviará a ${row.original.email}. Solo aplica a cuentas que todavía no establecieron su contraseña personal.`}
+            confirmar="Reenviar"
+            onConfirm={() => reenviar.mutateAsync(row.original.usuarioId)}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setEditando(row.original)}
+            aria-label={`Editar ${nombreCompleto(row.original)}`}
+          >
+            <PencilIcon />
+          </Button>
+        </div>
       ),
     },
   ]
@@ -210,7 +260,25 @@ export default function Docentes() {
         onClose={() => setImportando(false)}
         titulo="Importar docentes"
         tipo="DOCENTES"
-        columnas="cedula, nombres, apellidos, email, titulo, departamento, habilitado (si/no)"
+        tipos={TIPOS_XLSX}
+        descripcion={
+          <>
+            Archivo Excel (.xlsx) con encabezados:{' '}
+            <code className="text-xs">{COLUMNAS_IMPORTACION}</code>. El correo debe ser
+            @uleam.edu.ec o @live.uleam.edu.ec, habilitado_tutoria acepta SI o NO y la cédula será
+            la contraseña temporal.{' '}
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-xs"
+              onClick={() =>
+                descargarPlantillaDocentes().catch((e) => toast.error(mensajeError(e)))
+              }
+            >
+              <DownloadIcon /> Descargar plantilla
+            </Button>
+          </>
+        }
         importar={(f) => importar.mutateAsync(f)}
       />
     </>

@@ -28,7 +28,6 @@ import type {
   LineaInvestigacion,
   LoteImportacion,
   SituacionIngreso,
-  Usuario,
 } from '@/types/dominio'
 
 /** Quita las claves `undefined` para no enviar propiedades que el backend no espera. */
@@ -80,32 +79,58 @@ export type DocenteInput = Pick<
   departamento?: string
 }
 
-/** Alta en dos pasos: cuenta DOCENTE (envía la clave temporal) y luego su perfil. */
+/**
+ * Alta atómica (cuenta DOCENTE + clave temporal por correo + perfil en una sola llamada) o
+ * edición. El correo es el usuario de acceso y nunca se envía al editar.
+ */
 export const useGuardarDocente = () =>
   useMutacion({
-    fn: async ({ id, ...b }: Partial<DocenteInput> & { id?: string; estado?: string }) => {
-      if (id) noDisponible('La edición de docentes')
-      const cuenta = await api.post<Usuario>('/usuarios', {
-        email: b.email,
-        nombres: b.nombres,
-        apellidos: b.apellidos,
-        rol: 'DOCENTE',
-      })
-      return docente(
-        await api.post<DocenteB>('/docentes', {
-          usuarioId: cuenta.id,
-          cedula: b.cedula,
-          tituloAcademico: b.tituloAcademico ?? '',
-          departamento: b.departamento ?? '',
-          habilitadoTutoria: b.habilitadoTutoria ?? false,
-        }),
-      )
-    },
+    fn: async ({
+      id,
+      email,
+      ...b
+    }: Partial<DocenteInput> & { id?: string; estado?: Docente['estado'] }) =>
+      docente(
+        id
+          ? await api.patch<DocenteB>(
+              `/docentes/${id}`,
+              definidos({
+                nombres: b.nombres?.trim(),
+                apellidos: b.apellidos?.trim(),
+                cedula: b.cedula?.trim(),
+                tituloAcademico: b.tituloAcademico?.trim() || undefined,
+                departamento: b.departamento?.trim() || undefined,
+                habilitadoTutoria: b.habilitadoTutoria,
+                estado: b.estado,
+              }),
+            )
+          : await api.post<DocenteB>('/docentes', {
+              email: email?.trim(),
+              nombres: b.nombres?.trim(),
+              apellidos: b.apellidos?.trim(),
+              cedula: b.cedula?.trim(),
+              tituloAcademico: b.tituloAcademico?.trim() ?? '',
+              departamento: b.departamento?.trim() ?? '',
+              habilitadoTutoria: b.habilitadoTutoria ?? false,
+            }),
+      ),
     invalida: [K.docentes, K.carga],
-    exito: 'Docente registrado. Recibirá por correo su clave temporal.',
+    exito: (_d, v) =>
+      v.id ? 'Docente actualizado.' : 'Docente registrado. Recibirá por correo su clave temporal.',
   })
 
 const RUTA_IMPORTACION_DOCENTES = '/importaciones/docentes'
+
+/** Descarga la plantilla XLSX de docentes (requiere sesión ADMIN). */
+export async function descargarPlantillaDocentes() {
+  const blob = await api.blob(`${RUTA_IMPORTACION_DOCENTES}/plantilla`)
+  const url = URL.createObjectURL(blob)
+  try {
+    descargarUrl(url, 'plantilla-docentes-titulacion.xlsx')
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+}
 
 /** Descarga la plantilla XLSX de estudiantes (requiere sesión ADMIN). */
 export async function descargarPlantillaEstudiantes() {
@@ -118,10 +143,12 @@ export async function descargarPlantillaEstudiantes() {
   }
 }
 
-export const useImportarDocentes = () =>
-  useMutacion<LoteImportacion, File>({
-    fn: async () => noDisponible('La importación de docentes'),
-    invalida: [K.lotes],
+/** Reenvía el correo de acceso con una nueva clave temporal (ADMIN). */
+export const useReenviarAcceso = () =>
+  useMutacion({
+    fn: (usuarioId: string) => api.post<unknown>(`/usuarios/${usuarioId}/reenviar-acceso`),
+    invalida: [K.docentes],
+    exito: 'Se reenvió el correo de acceso con una nueva clave temporal.',
   })
 
 // ── Estudiantes / habilitados ──
@@ -284,6 +311,17 @@ async function buscarEnHistorial(
   if (!item) throw new Error('No se encontró la importación en el historial.')
   return loteImportacion(item)
 }
+
+/** Importación de docentes con la plantilla XLSX propia; no depende del período. */
+export const useImportarDocentes = () =>
+  useMutacion({
+    fn: (archivo: File) => validarYConfirmar('DOCENTES', archivo),
+    invalida: [K.lotes, K.docentes],
+    exito: (l) =>
+      l.estado === 'FALLIDO'
+        ? 'El archivo tiene errores; revise el detalle en el diálogo de importación.'
+        : 'Importación confirmada; se procesará en segundo plano.',
+  })
 
 export const useImportarHabilitados = (pid?: string) =>
   useMutacion({
