@@ -55,6 +55,17 @@ export const useSolicitarExportacion = () =>
     exito: 'Solicitud registrada. El archivo se generará en segundo plano.',
   })
 
+/** Vuelve a encolar una solicitud FALLIDA (solo el solicitante; el backend responde 409 si no lo está). */
+export const useReintentarExportacion = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: (id: string) =>
+      api.post<{ id: string }>(`/periodos/${periodoId}/exportaciones/${id}/reintentar`, {}),
+    invalida: [K.exportaciones],
+    exito: 'Solicitud reenviada. El archivo se generará en segundo plano.',
+  })
+}
+
 export async function descargarExportacion(periodoId: string, id: string) {
   const r = await api.get<UrlFirmadaB>(`/periodos/${periodoId}/exportaciones/${id}/descarga`)
   descargarUrl(r.url)
