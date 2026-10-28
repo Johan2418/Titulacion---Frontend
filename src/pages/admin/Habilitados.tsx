@@ -49,7 +49,7 @@ import {
 } from '@/lib/estados'
 import { mensajeError } from '@/lib/errores'
 import { nombreCompleto } from '@/lib/utils'
-import type { CondicionIngreso, EstudianteHabilitado } from '@/types/dominio'
+import type { CondicionIngreso, EstadoPeriodo, EstudianteHabilitado } from '@/types/dominio'
 
 /** La importación institucional de estudiantes solo admite Excel. */
 const TIPOS_XLSX = { xlsx: TIPOS_IMPORTACION.xlsx }
@@ -126,11 +126,9 @@ function HabilitarManual({ onClose }: { onClose: () => void }) {
 }
 
 function EditarHabilitado({ h, onClose }: { h: EstudianteHabilitado; onClose: () => void }) {
-  const [estado, setEstado] = useState(h.estado)
-  const [condicion, setCondicion] = useState(h.condicionIngreso)
+  const [condicion, setCondicion] = useState<CondicionIngreso>(h.condicionIngreso)
   const [requisito, setRequisito] = useState(h.requisitoPendiente ?? '')
   const actualizar = useActualizarHabilitado()
-  const bloqueado = h.situacionIngreso === 'NO_ADMITIDO'
   return (
     <form
       className="space-y-4"
@@ -139,7 +137,6 @@ function EditarHabilitado({ h, onClose }: { h: EstudianteHabilitado; onClose: ()
         actualizar.mutate(
           {
             id: h.id,
-            estado,
             condicionIngreso: condicion,
             requisitoPendiente: condicion === 'CONDICIONADO' ? requisito : null,
           },
@@ -147,35 +144,30 @@ function EditarHabilitado({ h, onClose }: { h: EstudianteHabilitado; onClose: ()
         )
       }}
     >
-      <Campo etiqueta="Estado de habilitación">
+      <Campo etiqueta="Condición de ingreso">
         {(p) => (
           <SelectSimple
             {...p}
-            value={estado}
-            onChange={(v) => setEstado(v as typeof estado)}
-            opciones={opciones(ESTADO_HABILITACION)}
-          />
-        )}
-      </Campo>
-      <Campo
-        etiqueta="Condición de ingreso"
-        ayuda={bloqueado ? 'El ingreso ya fue resuelto como no admitido.' : undefined}
-      >
-        {(p) => (
-          <SelectSimple
-            {...p}
-            disabled={bloqueado}
             value={condicion}
-            onChange={(v) => setCondicion(v as CondicionIngreso)}
+            onChange={(v) => {
+              setCondicion(v as CondicionIngreso)
+              if (v === 'REGULAR') setRequisito('')
+            }}
             opciones={opciones(CONDICION_INGRESO)}
           />
         )}
       </Campo>
-      {condicion === 'CONDICIONADO' && !bloqueado && (
+      {condicion === 'CONDICIONADO' && (
         <Campo etiqueta="Requisito pendiente" requerido>
           {(p) => <Input {...p} value={requisito} onChange={(e) => setRequisito(e.target.value)} />}
         </Campo>
       )}
+      <p className="text-sm text-muted-foreground">
+        Al guardar, el estudiante queda en estado Habilitado.{' '}
+        {condicion === 'REGULAR'
+          ? 'Su ingreso se registra como admitido.'
+          : 'Su ingreso queda pendiente hasta resolver el requisito.'}
+      </p>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>
           Cancelar
@@ -261,6 +253,13 @@ function ResolverIngreso({ h, onClose }: { h: EstudianteHabilitado; onClose: () 
   )
 }
 
+/** Estados del período en los que se puede resolver el ingreso de un condicionado. */
+const ESTADOS_RESOLUCION: EstadoPeriodo[] = [
+  'BORRADOR',
+  'POSTULACION_ABIERTA',
+  'POSTULACION_CERRADA',
+]
+
 type Dialogo =
   | { tipo: 'nuevo' }
   | { tipo: 'editar' | 'resolver'; h: EstudianteHabilitado }
@@ -277,6 +276,8 @@ export default function Habilitados() {
   const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [condicion, setCondicion] = useState('')
   const [situacion, setSituacion] = useState('')
+  // el backend solo admite resolver ingresos antes de iniciar la titulación
+  const puedeResolver = !!periodo && ESTADOS_RESOLUCION.includes(periodo.estado)
 
   const columnas: ColumnDef<EstudianteHabilitado>[] = [
     {
@@ -340,7 +341,8 @@ export default function Habilitados() {
       header: () => <span className="sr-only">Acciones</span>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
-          {row.original.condicionIngreso === 'CONDICIONADO' &&
+          {puedeResolver &&
+            row.original.condicionIngreso === 'CONDICIONADO' &&
             row.original.situacionIngreso === 'PENDIENTE' && (
               <Button
                 variant="outline"

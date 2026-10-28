@@ -179,16 +179,33 @@ export const useHabilitar = (pid?: string) =>
     exito: 'Estudiante habilitado.',
   })
 
-export const useActualizarHabilitado = () =>
-  useMutacion<
-    EstudianteHabilitado,
-    { id: string } & Partial<
-      Pick<EstudianteHabilitado, 'estado' | 'condicionIngreso' | 'requisitoPendiente'>
-    >
-  >({
-    fn: async () => noDisponible('La edición de una habilitación'),
+/**
+ * Edita la condición de ingreso. El backend siempre deja la habilitación en HABILITADO:
+ * REGULAR queda ADMITIDO y CONDICIONADO queda PENDIENTE con su requisito.
+ */
+export const useActualizarHabilitado = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({
+      id,
+      condicionIngreso,
+      requisitoPendiente,
+    }: {
+      id: string
+      condicionIngreso: 'REGULAR' | 'CONDICIONADO'
+      requisitoPendiente?: string | null
+    }): Promise<EstudianteHabilitado> =>
+      habilitado(
+        await api.patch<HabilitadoB>(`/periodos/${periodoId}/habilitados/${id}`, {
+          condicionIngreso,
+          requisitoPendiente:
+            condicionIngreso === 'CONDICIONADO' ? requisitoPendiente?.trim() : null,
+        }),
+      ),
     invalida: [K.habilitados, K.periodos],
+    exito: 'Habilitación actualizada.',
   })
+}
 
 export const useResolverIngreso = () => {
   const { periodoId } = usePeriodo()
