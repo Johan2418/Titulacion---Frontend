@@ -370,7 +370,7 @@ export default function Habilitados() {
     <>
       <PageHeader
         titulo="Estudiantes habilitados"
-        descripcion={`Habilitación por período (${periodo?.codigo}). Los condicionados deben resolverse antes del ${formatFecha(periodo?.fechaInicioTitulacion)}.`}
+        descripcion={`Habilitación por período (${periodo?.codigo}). Los condicionados deben resolverse antes del ${formatFecha(periodo?.fechaInicioTitulacion)}; los que sigan sin resolver al iniciar la titulación quedarán suspendidos y no admitidos.`}
         acciones={
           <>
             <Button variant="outline" onClick={() => setDialogo({ tipo: 'importar' })}>

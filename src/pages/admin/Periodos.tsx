@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   useActualizarPeriodo,
   useCambiarEstadoPeriodo,
@@ -63,6 +64,8 @@ function FormPeriodo({
       : { maxIntegrantesDefault: 3 },
   })
   const e = formState.errors
+  // con la postulación cerrada solo se puede extender la fecha fin (para reabrirla)
+  const soloFin = periodo?.estado === 'POSTULACION_CERRADA'
   const enviar = handleSubmit((d) => {
     const cuerpo = {
       ...d,
@@ -76,14 +79,22 @@ function FormPeriodo({
   return (
     <form onSubmit={enviar} className="grid gap-4 sm:grid-cols-2" noValidate>
       <Campo etiqueta="Código" requerido error={e.codigo?.message}>
-        {(p) => <Input {...p} {...register('codigo')} placeholder="2027-1" />}
+        {(p) => <Input {...p} {...register('codigo')} placeholder="2027-1" readOnly={soloFin} />}
       </Campo>
       <Campo
         etiqueta="Máx. integrantes por defecto"
         requerido
         error={e.maxIntegrantesDefault?.message}
       >
-        {(p) => <Input {...p} type="number" min={1} {...register('maxIntegrantesDefault')} />}
+        {(p) => (
+          <Input
+            {...p}
+            type="number"
+            min={1}
+            {...register('maxIntegrantesDefault')}
+            readOnly={soloFin}
+          />
+        )}
       </Campo>
       <Campo
         etiqueta="Nombre"
@@ -91,12 +102,28 @@ function FormPeriodo({
         error={e.nombre?.message}
         className="space-y-1.5 sm:col-span-2"
       >
-        {(p) => <Input {...p} {...register('nombre')} />}
+        {(p) => <Input {...p} {...register('nombre')} readOnly={soloFin} />}
       </Campo>
       <Campo etiqueta="Inicio de postulación" requerido error={e.fechaInicioPostulacion?.message}>
-        {(p) => <Input {...p} type="datetime-local" {...register('fechaInicioPostulacion')} />}
+        {(p) => (
+          <Input
+            {...p}
+            type="datetime-local"
+            {...register('fechaInicioPostulacion')}
+            readOnly={soloFin}
+          />
+        )}
       </Campo>
-      <Campo etiqueta="Fin de postulación" requerido error={e.fechaFinPostulacion?.message}>
+      <Campo
+        etiqueta="Fin de postulación"
+        requerido
+        error={e.fechaFinPostulacion?.message}
+        ayuda={
+          soloFin
+            ? 'Con la postulación cerrada solo puede cambiarse esta fecha, por ejemplo para reabrirla.'
+            : undefined
+        }
+      >
         {(p) => <Input {...p} type="datetime-local" {...register('fechaFinPostulacion')} />}
       </Campo>
       <Campo
@@ -105,7 +132,14 @@ function FormPeriodo({
         error={e.fechaInicioTitulacion?.message}
         ayuda="Fecha límite para resolver a los condicionados."
       >
-        {(p) => <Input {...p} type="datetime-local" {...register('fechaInicioTitulacion')} />}
+        {(p) => (
+          <Input
+            {...p}
+            type="datetime-local"
+            {...register('fechaInicioTitulacion')}
+            readOnly={soloFin}
+          />
+        )}
       </Campo>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" onClick={onClose}>
@@ -116,6 +150,75 @@ function FormPeriodo({
         </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+/** Archivar exige un motivo que el backend registra en la auditoría. */
+function ArchivarPeriodo({ periodo }: { periodo: PeriodoTitulacion }) {
+  const cambiar = useCambiarEstadoPeriodo()
+  const [motivo, setMotivo] = useState('')
+  const [intentado, setIntentado] = useState(false)
+  const limpio = motivo.trim()
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" size="sm">
+          Archivar
+        </Button>
+      }
+      titulo={`Archivar: ${periodo.codigo}`}
+      descripcion="El período pasará a «Archivado» y ya no admitirá cambios. Se conserva todo su historial."
+      confirmar="Archivar"
+      destructivo
+      onConfirm={async () => {
+        setIntentado(true)
+        // sin motivo el diálogo queda abierto mostrando el error del campo
+        if (!limpio) throw new Error('motivo requerido')
+        await cambiar.mutateAsync({ id: periodo.id, estado: 'ARCHIVADO', motivo: limpio })
+        setMotivo('')
+        setIntentado(false)
+      }}
+    >
+      <Campo
+        etiqueta="Motivo"
+        requerido
+        error={intentado && !limpio ? 'Indique el motivo del archivo.' : undefined}
+      >
+        {(p) => (
+          <Textarea
+            {...p}
+            value={motivo}
+            maxLength={1000}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Cierre administrativo del proceso correspondiente al período."
+          />
+        )}
+      </Campo>
+    </ConfirmDialog>
+  )
+}
+
+/** Iniciar titulación: los condicionados sin resolver quedan suspendidos y no admitidos. */
+function IniciarTitulacion({ periodo }: { periodo: PeriodoTitulacion }) {
+  const cambiar = useCambiarEstadoPeriodo()
+  // el backend calcula el conteo en GET /periodos (ADMIN) con una consulta agrupada
+  const pendientes = periodo.condicionadosPendientes ?? 0
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" size="sm">
+          Iniciar titulación
+        </Button>
+      }
+      titulo={`Iniciar titulación: ${periodo.codigo}`}
+      descripcion={
+        `El período pasará a «${ESTADO_PERIODO.EN_CURSO.label}».` +
+        (pendientes > 0
+          ? ` Los ${pendientes} estudiante(s) condicionado(s) sin resolver quedarán suspendidos y no admitidos.`
+          : '')
+      }
+      onConfirm={() => cambiar.mutateAsync({ id: periodo.id, estado: 'EN_CURSO' })}
+    />
   )
 }
 
@@ -165,17 +268,13 @@ export default function Periodos() {
         return (
           <div className="flex flex-wrap justify-end gap-1">
             {(SIGUIENTE[p.estado] ?? []).map((s) => {
-              const bloqueado = s.estado === 'EN_CURSO' && !!p.condicionadosPendientes
+              if (s.estado === 'ARCHIVADO') return <ArchivarPeriodo key={s.estado} periodo={p} />
+              if (s.estado === 'EN_CURSO') return <IniciarTitulacion key={s.estado} periodo={p} />
               return (
                 <ConfirmDialog
                   key={s.estado}
                   trigger={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={bloqueado}
-                      title={bloqueado ? 'Hay condicionados sin resolver (RN-02)' : undefined}
-                    >
+                    <Button variant="outline" size="sm">
                       {s.label}
                     </Button>
                   }

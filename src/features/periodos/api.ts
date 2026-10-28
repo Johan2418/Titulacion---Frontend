@@ -119,15 +119,21 @@ const ACCION_ESTADO: Partial<Record<EstadoPeriodo, string>> = {
   POSTULACION_ABIERTA: 'abrir-postulacion',
   POSTULACION_CERRADA: 'cerrar-postulacion',
   EN_CURSO: 'iniciar-titulacion',
+  ARCHIVADO: 'archivar',
 }
 
 export const useCambiarEstadoPeriodo = () =>
   useMutacion({
-    fn: ({ id, estado }: { id: string; estado: EstadoPeriodo }) => {
+    fn: ({ id, estado, motivo }: { id: string; estado: EstadoPeriodo; motivo?: string }) => {
       const accion = ACCION_ESTADO[estado]
       if (!accion) noDisponible(`El cambio de estado a ${estado}`)
-      return api.post<PeriodoTitulacion>(`/periodos/${id}/${accion}`, {})
+      // archivar exige un motivo; las demás transiciones no admiten cuerpo
+      return api.post<PeriodoTitulacion>(
+        `/periodos/${id}/${accion}`,
+        estado === 'ARCHIVADO' ? { motivo } : {},
+      )
     },
-    invalida: [K.periodos],
+    // iniciar titulación suspende a los condicionados pendientes: refrescar habilitados
+    invalida: [K.periodos, K.habilitados],
     exito: 'Estado del período actualizado.',
   })
