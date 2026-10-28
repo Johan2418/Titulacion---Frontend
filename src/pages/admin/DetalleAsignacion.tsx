@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, StarIcon, UserCheckIcon } from 'lucide-react'
-import { ApiError } from '@/api/client'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -27,7 +26,6 @@ import {
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  CODIGO_ADVERTENCIA_CARGA,
   useAnularAsignacion,
   useAsignacion,
   useAsignarTutor,
@@ -79,26 +77,25 @@ function AsignarTutor({ asignacion }: { asignacion: AsignacionTema }) {
   const nivel = seleccion ? nivelCarga(seleccion, 1) : 'libre'
   const bloqueado = nivel === 'excedido' && seleccion?.bloquear
 
-  const enviar = (confirmarExceso = false) =>
+  // En modo advertir el backend asigna y devuelve las advertencias; en modo bloquear responde
+  // 409 con el motivo, que se notifica como error.
+  const enviar = () => {
+    setAdvertencia(null)
     asignar.mutate(
       {
         asignacionId: asignacion.id,
         docenteId,
         motivoCambio: vigente ? motivo : undefined,
-        confirmarExceso,
       },
       {
-        onSuccess: () => {
+        onSuccess: (r) => {
           setDocenteId('')
           setMotivo('')
-          setAdvertencia(null)
-        },
-        onError: (e) => {
-          if (e instanceof ApiError && e.code === CODIGO_ADVERTENCIA_CARGA)
-            setAdvertencia(e.message)
+          setAdvertencia(r.advertencias.length ? r.advertencias.join(' ') : null)
         },
       },
     )
+  }
 
   const filaDocente = (id: string, nombre: string, extra?: React.ReactNode) => {
     const c = cargaPorDocente.get(id)
@@ -186,8 +183,15 @@ function AsignarTutor({ asignacion }: { asignacion: AsignacionTema }) {
               {seleccion.origenLimite === 'GLOBAL' ? 'límite global' : 'límite específico'}).
               {bloqueado
                 ? ' La configuración impide superar el límite (RN-11).'
-                : ' Se pedirá confirmación (RN-11).'}
+                : ' La asignación se registrará con una advertencia (RN-11).'}
             </AlertDescription>
+          </Alert>
+        )}
+        {advertencia && (
+          <Alert variant="warning" role="status">
+            <AlertTriangleIcon />
+            <AlertTitle>Tutor asignado con advertencia de carga</AlertTitle>
+            <AlertDescription>{advertencia}</AlertDescription>
           </Alert>
         )}
         {vigente && (
@@ -200,29 +204,12 @@ function AsignarTutor({ asignacion }: { asignacion: AsignacionTema }) {
           </Campo>
         )}
         <Button
-          onClick={() => enviar(false)}
+          onClick={enviar}
           disabled={!docenteId || !!bloqueado || asignar.isPending || (!!vigente && !motivo.trim())}
         >
           <UserCheckIcon /> {vigente ? 'Reemplazar tutor' : 'Asignar tutor'}
         </Button>
       </CardContent>
-
-      <Dialog open={!!advertencia} onOpenChange={(o) => !o && setAdvertencia(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Advertencia de carga tutorial</DialogTitle>
-            <DialogDescription>{advertencia}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdvertencia(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => enviar(true)} disabled={asignar.isPending}>
-              Asignar de todos modos
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   )
 }
@@ -257,7 +244,14 @@ function AnularAsignacion({ asignacion }: { asignacion: AsignacionTema }) {
             )}
           </Campo>
           <Campo etiqueta="Motivo" requerido>
-            {(p) => <Textarea {...p} value={motivo} onChange={(e) => setMotivo(e.target.value)} />}
+            {(p) => (
+              <Textarea
+                {...p}
+                value={motivo}
+                maxLength={1000}
+                onChange={(e) => setMotivo(e.target.value)}
+              />
+            )}
           </Campo>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAbierto(false)}>
