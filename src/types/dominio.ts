@@ -420,8 +420,9 @@ export interface Notificacion {
 }
 
 export interface Auditoria {
-  id: number
-  usuario?: PersonaResumen | null
+  /** bigint del backend serializado como texto. */
+  id: string
+  usuario?: (PersonaResumen & { rol: Rol }) | null
   accion: string
   entidadTipo: string
   entidadId?: UUID | null

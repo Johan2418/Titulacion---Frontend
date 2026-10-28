@@ -3,7 +3,9 @@
  * El backend devuelve resúmenes más pequeños (p. ej. personas sin email ni cédula); los campos
  * que no envía se completan con valores neutros para que las pantallas no cambien.
  */
+import { clavesASnake } from './casos'
 import type {
+  Auditoria,
   AsignacionTema,
   AsignacionTutor,
   CargaDocente,
@@ -20,6 +22,7 @@ import type {
   LoteImportacion,
   Modalidad,
   PersonaResumen,
+  Rol,
   PlantillaPat,
   Postulacion,
   ResultadoRevision,
@@ -559,6 +562,35 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
   fechaCarga: d.fechaCarga,
   estado: d.revision,
   revision: d.detalleRevision ? revision(d.detalleRevision) : null,
+})
+
+// ── Auditoría ──
+export interface AuditoriaB {
+  id: string
+  actor: PersonaB & { rol: Rol }
+  accion: string
+  entidadTipo: string
+  entidadId: UUID
+  valoresAnteriores: Record<string, unknown> | null
+  valoresNuevos: Record<string, unknown> | null
+  ipOrigen: string | null
+  fechaHora: ISODate
+}
+
+/** Los valores auditados son JSON libre: se devuelven con sus claves originales (snake_case). */
+const valoresOriginales = (v: Record<string, unknown> | null) =>
+  v ? (clavesASnake(v) as Record<string, unknown>) : null
+
+export const auditoria = (a: AuditoriaB): Auditoria => ({
+  id: String(a.id),
+  usuario: { ...persona(a.actor), rol: a.actor.rol },
+  accion: a.accion,
+  entidadTipo: a.entidadTipo,
+  entidadId: a.entidadId,
+  valoresAnteriores: valoresOriginales(a.valoresAnteriores),
+  valoresNuevos: valoresOriginales(a.valoresNuevos),
+  ipOrigen: a.ipOrigen,
+  fechaHora: a.fechaHora,
 })
 
 // ── Historial de importaciones ──

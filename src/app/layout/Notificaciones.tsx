@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { BellIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,21 +11,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  useContadorNoLeidas,
   useMarcarLeida,
   useMarcarTodasLeidas,
-  useNotificaciones,
+  useNotificacionesRecientes,
 } from '@/features/notificaciones/api'
 import { formatFechaHora } from '@/lib/fechas'
 import { cn } from '@/lib/utils'
 
 export function CampanaNotificaciones() {
-  const { data = [] } = useNotificaciones()
+  const [abierto, setAbierto] = useState(false)
+  // el sondeo solo consulta el contador; la lista se pide al abrir el panel
+  const { data: noLeidas = 0 } = useContadorNoLeidas()
+  const { data = [], isLoading } = useNotificacionesRecientes(abierto, 6)
   const marcar = useMarcarLeida()
   const marcarTodas = useMarcarTodasLeidas()
-  const noLeidas = data.filter((n) => !n.leida).length
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={abierto} onOpenChange={setAbierto}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -50,11 +54,12 @@ export function CampanaNotificaciones() {
           )}
         </div>
         <DropdownMenuSeparator />
-        {data.length === 0 && (
+        {isLoading && <p className="p-3 text-sm text-muted-foreground">Cargando…</p>}
+        {!isLoading && data.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No tienes notificaciones.</p>
         )}
         <div className="max-h-80 overflow-y-auto">
-          {data.slice(0, 6).map((n) => (
+          {data.map((n) => (
             <DropdownMenuItem
               key={n.id}
               className="flex-col items-start gap-0.5"
