@@ -67,8 +67,10 @@ export interface HabilitadoB extends Omit<
 > {
   periodoId: UUID
   estudianteId: UUID
-  estudiante: PersonaB
+  /** Correo, cédula, carrera y nivel llegan en las respuestas para ADMIN o el propio estudiante. */
+  estudiante: PersonaB & { cedula?: string; carrera?: string; nivel?: number }
   resueltoPorId: UUID | null
+  resueltoPor?: PersonaB | null
 }
 
 export interface TemaB {
@@ -139,6 +141,8 @@ export interface PostulacionB {
   estado: Postulacion['estado']
   fechaPostulacion: ISODate
   observacion: string | null
+  /** Tutores propuestos embebidos por el backend (cargados en lote). */
+  tutoresPropuestos?: TutorPropuestoB[]
 }
 
 export interface TutorPropuestoB {
@@ -171,6 +175,7 @@ export interface AsignacionTemaB {
   motivo: string | null
   causaAnulacion: AsignacionTema['causaAnulacion']
   motivoAnulacion: string | null
+  anuladaPor?: PersonaB | null
   fechaAnulacion: ISODate | null
 }
 
@@ -209,6 +214,11 @@ export interface CargaActualB {
   cargaActual: number
   origen: 'DOCENTE' | 'GLOBAL' | 'SIN_CONFIGURACION'
   configuracion: { id: UUID; maxTrabajos: number; bloquearAlSuperar: boolean } | null
+}
+
+/** GET /periodos/:pid/carga-tutorial: carga y límite efectivo de cada docente. */
+export interface CargaPeriodoB extends CargaActualB {
+  docente: PersonaB & { cedula: string; habilitadoTutoria: boolean; estado: string }
 }
 
 export interface PlantillaB {
@@ -309,21 +319,17 @@ export const estudiante = (e: EstudianteB): Estudiante => ({
   email: e.usuario.email,
 })
 
-export const habilitado = (
-  h: HabilitadoB,
-  perfiles?: Map<UUID, Estudiante>,
-): EstudianteHabilitado => {
-  const perfil = perfiles?.get(h.estudianteId)
+export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
   return {
     id: h.id,
     periodoId: h.periodoId,
     estudiante: {
       ...estudianteResumen(h.estudiante),
       id: h.estudianteId,
-      email: perfil?.email ?? '',
-      cedula: perfil?.cedula ?? '',
-      carrera: perfil?.carrera ?? '',
-      nivel: perfil?.nivel ?? 0,
+      email: h.estudiante.email ?? '',
+      cedula: h.estudiante.cedula ?? '',
+      carrera: h.estudiante.carrera ?? '',
+      nivel: h.estudiante.nivel ?? 0,
     },
     origen: h.origen,
     loteImportacionId: h.loteImportacionId,
@@ -333,7 +339,7 @@ export const habilitado = (
     situacionIngreso: h.situacionIngreso,
     fechaHabilitacion: h.fechaHabilitacion,
     fechaResolucionIngreso: h.fechaResolucionIngreso,
-    resueltoPor: null,
+    resueltoPor: h.resueltoPor ? persona(h.resueltoPor) : null,
     observacionIngreso: h.observacionIngreso,
   }
 }
@@ -416,6 +422,11 @@ export const postulacion = (
   extra: { tutores?: TutorPropuesto[]; asignacionVigenteId?: UUID | null } = {},
 ): Postulacion => {
   const integrantes = p.participantes.map(estudianteResumen)
+  const tutores =
+    extra.tutores ??
+    (p.tutoresPropuestos ?? [])
+      .map(tutorPropuesto)
+      .sort((a, b) => a.ordenPrioridad - b.ordenPrioridad)
   return {
     id: p.id,
     tema: p.tema,
@@ -429,7 +440,7 @@ export const postulacion = (
     estado: p.estado,
     fechaPostulacion: p.fechaPostulacion,
     observacion: p.observacion,
-    tutoresPropuestos: extra.tutores ?? [],
+    tutoresPropuestos: tutores,
     asignacionVigenteId: extra.asignacionVigenteId ?? null,
   }
 }
@@ -466,7 +477,7 @@ export const asignacionTema = (
     motivo: a.motivo,
     causaAnulacion: a.causaAnulacion,
     motivoAnulacion: a.motivoAnulacion,
-    anuladaPor: null,
+    anuladaPor: a.anuladaPor ? persona(a.anuladaPor) : null,
     fechaAnulacion: a.fechaAnulacion,
     tutorVigente: extra.tutorVigente ?? null,
     estadoPat: extra.estadoPat ?? null,

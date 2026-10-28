@@ -7,7 +7,7 @@ import {
   estudiante,
   habilitado,
   loteImportacion,
-  type CargaActualB,
+  type CargaPeriodoB,
   type ConfigCargaB,
   type DocenteB,
   type EstudianteB,
@@ -175,13 +175,9 @@ export const useHabilitados = (pid?: string, opciones: { sinGrupo?: boolean } = 
       if (opciones.sinGrupo && rol === 'ESTUDIANTE')
         return (
           await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados/candidatos-invitacion`)
-        ).map((h) => habilitado(h))
-      const [registros, perfiles] = await Promise.all([
-        api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`),
-        listarEstudiantes(),
-      ])
-      const porId = new Map(perfiles.map((e) => [e.id, e]))
-      return registros.map((h) => habilitado(h, porId))
+        ).map(habilitado)
+      // el backend ya incluye correo, cédula, carrera y nivel en cada habilitación (ADMIN)
+      return (await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`)).map(habilitado)
     },
     enabled: !!pid,
   })
@@ -414,16 +410,20 @@ export const useDesactivarConfigCarga = (pid?: string) =>
     exito: 'Límite específico desactivado; el docente vuelve al límite global.',
   })
 
+/** Una sola consulta: carga actual y límite efectivo de cada docente del período. */
 export const useCargaTutorial = (pid?: string) =>
   useQuery({
     queryKey: [...K.carga, 'docentes', pid],
-    queryFn: async (): Promise<CargaDocente[]> => {
-      const docentes = await listarDocentes()
-      return Promise.all(
-        docentes.map(async (d) =>
-          cargaDocente(await api.get<CargaActualB>(`/periodos/${pid}/carga-tutorial/${d.id}`), d),
-        ),
-      )
-    },
+    queryFn: async (): Promise<CargaDocente[]> =>
+      (await api.todas<CargaPeriodoB>(`/periodos/${pid}/carga-tutorial`)).map((c) =>
+        cargaDocente(c, {
+          id: c.docente.id,
+          nombres: c.docente.nombres,
+          apellidos: c.docente.apellidos,
+          email: c.docente.email ?? '',
+          cedula: c.docente.cedula,
+          habilitadoTutoria: c.docente.habilitadoTutoria,
+        }),
+      ),
     enabled: !!pid,
   })

@@ -297,9 +297,6 @@ function DetalleGrupo({ grupo }: { grupo: Grupo }) {
                 <TableRow key={i.id}>
                   <TableCell>
                     <span className="font-medium">{nombreCompleto(i.estudiante)}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {i.estudiante.email}
-                    </span>
                   </TableCell>
                   <TableCell>{i.estudiante.matricula}</TableCell>
                   <TableCell>

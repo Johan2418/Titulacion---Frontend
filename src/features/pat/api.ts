@@ -4,8 +4,8 @@ import {
   documentoPat,
   estudianteResumen,
   plantilla,
-  type AsignacionTemaB,
   type DocumentoPatB,
+  type PersonaB,
   type PlantillaB,
   type UrlFirmadaB,
 } from '@/api/adaptadores'
@@ -110,35 +110,39 @@ export const useSubirPat = (asignacionId?: string) => {
   })
 }
 
-/** Bandeja de revisión: última versión del PAT de cada trabajo vigente del período. */
+interface UltimaPatB {
+  asignacionTemaId: string
+  tema: { id: string; titulo: string }
+  participantes: PersonaB[]
+  estado: EstadoDocumentoPat | 'SIN_ENTREGA'
+  documento: DocumentoPatB | null
+}
+
+/**
+ * Bandeja de revisión: última versión del PAT de cada trabajo vigente del período, en una sola
+ * consulta al backend (GET /periodos/:pid/documentos-pat/ultimas, ADMIN).
+ */
 export const useBandejaPat = (periodoId?: string, estado?: EstadoDocumentoPat | '') =>
   useQuery({
     queryKey: [...K.pat, 'bandeja', periodoId, estado],
-    queryFn: async () => {
-      const asignaciones = await api.todas<AsignacionTemaB>(
-        `/periodos/${periodoId}/asignaciones-tema`,
-        { estado: 'VIGENTE' },
+    queryFn: async () =>
+      (
+        await api.todas<UltimaPatB>(`/periodos/${periodoId}/documentos-pat/ultimas`, {
+          estado: estado || undefined,
+        })
       )
-      const docs = await Promise.all(
-        asignaciones.map(async (a) => {
-          const d = await oNulo(
-            api.get<DocumentoPatB>(
-              `/periodos/${periodoId}/asignaciones-tema/${a.id}/documentos-pat/ultima`,
-            ),
-          )
-          return d
-            ? {
-                ...documentoPat(d),
-                tema: a.tema,
-                integrantes: a.participantes.map(estudianteResumen),
-              }
-            : null
-        }),
-      )
-      return docs
-        .filter((d): d is NonNullable<typeof d> => !!d && (!estado || d.estado === estado))
-        .sort((a, b) => a.fechaCarga.localeCompare(b.fechaCarga))
-    },
+        .flatMap((u) =>
+          u.documento
+            ? [
+                {
+                  ...documentoPat(u.documento),
+                  tema: u.tema,
+                  integrantes: u.participantes.map(estudianteResumen),
+                },
+              ]
+            : [],
+        )
+        .sort((a, b) => a.fechaCarga.localeCompare(b.fechaCarga)),
     enabled: !!periodoId,
   })
 
