@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { AlertTriangleIcon, PencilIcon, PlusIcon, ScaleIcon, UploadIcon } from 'lucide-react'
+import {
+  AlertTriangleIcon,
+  DownloadIcon,
+  PencilIcon,
+  PlusIcon,
+  ScaleIcon,
+  UploadIcon,
+} from 'lucide-react'
+import { toast } from 'sonner'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
@@ -19,15 +27,18 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  descargarPlantillaEstudiantes,
   useActualizarHabilitado,
   useEstudiantes,
   useHabilitados,
   useHabilitar,
   useImportarHabilitados,
+  useLotes,
   useResolverIngreso,
 } from '@/features/catalogos/api'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { TIPOS_IMPORTACION } from '@/lib/archivos'
 import { formatFecha, formatFechaHora } from '@/lib/fechas'
 import {
   CONDICION_INGRESO,
@@ -36,8 +47,12 @@ import {
   ORIGEN_HABILITACION,
   SITUACION_INGRESO,
 } from '@/lib/estados'
+import { mensajeError } from '@/lib/errores'
 import { nombreCompleto } from '@/lib/utils'
 import type { CondicionIngreso, EstudianteHabilitado } from '@/types/dominio'
+
+/** La importación institucional de estudiantes solo admite Excel. */
+const TIPOS_XLSX = { xlsx: TIPOS_IMPORTACION.xlsx }
 
 function HabilitarManual({ onClose }: { onClose: () => void }) {
   const { periodoId } = usePeriodo()
@@ -257,6 +272,8 @@ export default function Habilitados() {
   const { periodo, periodoId } = usePeriodo()
   const query = useHabilitados(periodoId)
   const importar = useImportarHabilitados(periodoId)
+  // sigue el lote desde la página para refrescar la tabla aunque el diálogo se cierre
+  useLotes({ tipo: 'ESTUDIANTES', periodoId })
   const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [condicion, setCondicion] = useState('')
   const [situacion, setSituacion] = useState('')
@@ -427,7 +444,28 @@ export default function Habilitados() {
         titulo="Importar estudiantes habilitados"
         tipo="ESTUDIANTES"
         periodoId={periodoId}
-        columnas="cedula, nombres, apellidos, email, matricula, carrera, nivel, condicion (REGULAR/CONDICIONADO), requisito"
+        tipos={TIPOS_XLSX}
+        descripcion={
+          <>
+            Archivo Excel (.xlsx) con encabezados:{' '}
+            <code className="text-xs">
+              Identificación, Apellidos, Nombres, nivel, ACADEMICO, INGLES
+            </code>
+            . Se genera el correo <code className="text-xs">e{'{cédula}'}@live.uleam.edu.ec</code> y
+            la cédula como contraseña temporal. Con SI en ACADEMICO e INGLES el estudiante queda
+            habilitado; con algún NO queda suspendido.{' '}
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-xs"
+              onClick={() =>
+                descargarPlantillaEstudiantes().catch((e) => toast.error(mensajeError(e)))
+              }
+            >
+              <DownloadIcon /> Descargar plantilla
+            </Button>
+          </>
+        }
         importar={(f) => importar.mutateAsync(f)}
       />
     </>

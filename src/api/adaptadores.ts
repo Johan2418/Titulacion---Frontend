@@ -17,6 +17,7 @@ import type {
   Grupo,
   Invitacion,
   ISODate,
+  LoteImportacion,
   Modalidad,
   PersonaResumen,
   PlantillaPat,
@@ -554,4 +555,64 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
   fechaCarga: d.fechaCarga,
   estado: d.revision,
   revision: d.detalleRevision ? revision(d.detalleRevision) : null,
+})
+
+// ── Historial de importaciones ──
+export type EstadoPreparacionB =
+  'VALIDANDO' | 'LISTA' | 'INVALIDA' | 'EN_COLA' | 'PROCESANDO' | 'COMPLETADA' | 'FALLIDA'
+
+export interface ImportacionHistorialB {
+  id: UUID
+  tipo: LoteImportacion['tipo']
+  periodoId: UUID | null
+  nombreArchivo: string
+  estado: EstadoPreparacionB
+  expirada: boolean
+  totalFilas: number
+  filasOk: number
+  filasError: number
+  errores: { fila: number; columna?: string; mensaje: string }[]
+  lote: {
+    id: UUID
+    estado: LoteImportacion['estado']
+    totalFilas: number
+    filasOk: number
+    filasError: number
+    fechaInicio: ISODate
+    fechaFin: ISODate | null
+  } | null
+  solicitadaPor: { id: UUID; nombres: string; apellidos: string }
+  creadaEn: ISODate
+  expiraEn: ISODate
+}
+
+const ESTADO_PREPARACION: Record<EstadoPreparacionB, LoteImportacion['estado']> = {
+  VALIDANDO: 'EN_PROCESO',
+  LISTA: 'EN_PROCESO',
+  EN_COLA: 'EN_PROCESO',
+  PROCESANDO: 'EN_PROCESO',
+  COMPLETADA: 'COMPLETADO',
+  INVALIDA: 'FALLIDO',
+  FALLIDA: 'FALLIDO',
+}
+
+/** Una preparación (y su lote, si se completó) como lote de importación del frontend. */
+export const loteImportacion = (p: ImportacionHistorialB): LoteImportacion => ({
+  id: p.id,
+  periodoId: p.periodoId,
+  tipo: p.tipo,
+  nombreArchivo: p.nombreArchivo,
+  // una vista previa vencida ya no avanzará: deja de contarse como en proceso
+  estado: p.lote?.estado ?? (p.expirada ? 'FALLIDO' : ESTADO_PREPARACION[p.estado]),
+  totalFilas: p.lote?.totalFilas ?? p.totalFilas,
+  filasOk: p.filasOk,
+  filasError: p.filasError,
+  errores: p.errores.map((e) => ({
+    fila: e.fila,
+    mensaje: e.columna ? `${e.columna}: ${e.mensaje}` : e.mensaje,
+  })),
+  fechaInicio: p.creadaEn,
+  fechaFin: p.lote?.fechaFin ?? null,
+  expirada: p.expirada,
+  solicitadaPor: p.solicitadaPor,
 })

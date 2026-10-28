@@ -1,19 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
-import { api, noDisponible } from '@/api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, noDisponible, type Pagina } from '@/api/client'
 import {
   cargaDocente,
   configCarga,
   docente,
   estudiante,
   habilitado,
+  loteImportacion,
   type CargaActualB,
   type ConfigCargaB,
   type DocenteB,
   type EstudianteB,
+  type EstadoPreparacionB,
   type HabilitadoB,
+  type ImportacionHistorialB,
 } from '@/api/adaptadores'
 import { K } from '@/api/claves'
-import { useMutacion } from '@/api/mutacion'
+import { descargarUrl, useMutacion } from '@/api/mutacion'
 import { useUsuario } from '@/auth/AuthProvider'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import type {
@@ -101,6 +104,19 @@ export const useGuardarDocente = () =>
     invalida: [K.docentes, K.carga],
     exito: 'Docente registrado. Recibirá por correo su clave temporal.',
   })
+
+const RUTA_IMPORTACION_DOCENTES = '/importaciones/docentes'
+
+/** Descarga la plantilla XLSX de estudiantes (requiere sesión ADMIN). */
+export async function descargarPlantillaEstudiantes() {
+  const blob = await api.blob('/importaciones/estudiantes/plantilla')
+  const url = URL.createObjectURL(blob)
+  try {
+    descargarUrl(url, 'plantilla-estudiantes-titulacion.xlsx')
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+}
 
 export const useImportarDocentes = () =>
   useMutacion<LoteImportacion, File>({
@@ -200,118 +216,99 @@ export const useResolverIngreso = () => {
 
 // ── Importación de estudiantes (Excel) ──
 /**
- * El backend valida el archivo en segundo plano (preparación) y luego se confirma.
- * Las preparaciones de la sesión se recuerdan aquí para listarlas como lotes.
+ * El backend valida el archivo en segundo plano (preparación) y luego se confirma. El historial
+ * (incluidas las preparaciones vencidas) se consulta en el backend, no en el navegador.
  */
 interface PreparacionB {
   id: string
-  periodoId: string
-  nombreArchivo: string
-  estado: 'VALIDANDO' | 'LISTA' | 'INVALIDA' | 'EN_COLA' | 'PROCESANDO' | 'COMPLETADA' | 'FALLIDA'
-  totalFilas: number
-  errores: { fila: number; columna?: string; mensaje: string }[]
-  creadaEn: string
+  estado: EstadoPreparacionB
 }
 
-const CLAVE_PREPARACIONES = 'titulacion.preparacionesImportacion'
+const rutaPreparaciones = (tipo: LoteImportacion['tipo'], periodoId?: string) =>
+  tipo === 'DOCENTES'
+    ? RUTA_IMPORTACION_DOCENTES
+    : `/periodos/${periodoId}/importaciones/estudiantes`
 
-function preparacionesGuardadas(): { id: string; periodoId: string }[] {
-  try {
-    return JSON.parse(sessionStorage.getItem(CLAVE_PREPARACIONES) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function recordarPreparacion(id: string, periodoId: string) {
-  try {
-    const previas = preparacionesGuardadas().filter((p) => p.id !== id)
-    sessionStorage.setItem(
-      CLAVE_PREPARACIONES,
-      JSON.stringify([{ id, periodoId }, ...previas].slice(0, 20)),
-    )
-  } catch {
-    // sin almacenamiento: solo no se listará
-  }
-}
-
-const ESTADO_LOTE: Record<PreparacionB['estado'], LoteImportacion['estado']> = {
-  VALIDANDO: 'EN_PROCESO',
-  LISTA: 'EN_PROCESO',
-  EN_COLA: 'EN_PROCESO',
-  PROCESANDO: 'EN_PROCESO',
-  COMPLETADA: 'COMPLETADO',
-  INVALIDA: 'FALLIDO',
-  FALLIDA: 'FALLIDO',
-}
-
-const lote = (p: PreparacionB): LoteImportacion => ({
-  id: p.id,
-  periodoId: p.periodoId,
-  tipo: 'ESTUDIANTES',
-  nombreArchivo: p.nombreArchivo,
-  estado: ESTADO_LOTE[p.estado],
-  totalFilas: p.totalFilas,
-  filasOk: p.estado === 'COMPLETADA' ? p.totalFilas : 0,
-  filasError: p.errores.length,
-  errores: p.errores.map((e) => ({
-    fila: e.fila,
-    mensaje: e.columna ? `${e.columna}: ${e.mensaje}` : e.mensaje,
-  })),
-  fechaInicio: p.creadaEn,
-})
-
-const rutaPreparacion = (pid: string, id: string) =>
-  `/periodos/${pid}/importaciones/estudiantes/${id}`
+/** Cantidad de importaciones recientes que se muestran (primera página del historial). */
+const LIMITE_HISTORIAL = 20
 
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** Envía el archivo, espera la validación y, si no hay errores, confirma la carga. */
+async function validarYConfirmar(
+  tipo: LoteImportacion['tipo'],
+  archivo: File,
+  periodoId?: string,
+): Promise<LoteImportacion> {
+  const base = rutaPreparaciones(tipo, periodoId)
+  const fd = new FormData()
+  fd.append('archivo', archivo)
+  const { id } = await api.post<{ id: string }>(`${base}/validar`, fd)
+  let prep = await api.get<PreparacionB>(`${base}/${id}`)
+  for (let i = 0; prep.estado === 'VALIDANDO' && i < 40; i++) {
+    await esperar(1500)
+    prep = await api.get<PreparacionB>(`${base}/${id}`)
+  }
+  if (prep.estado === 'LISTA') await api.post(`${base}/${id}/confirmar`, {})
+  return buscarEnHistorial(tipo, id, periodoId)
+}
+
+/** Devuelve la preparación desde el historial (incluye contadores y errores por fila). */
+async function buscarEnHistorial(
+  tipo: LoteImportacion['tipo'],
+  id: string,
+  periodoId?: string,
+): Promise<LoteImportacion> {
+  const r = await api.get<Pagina<ImportacionHistorialB>>(rutaPreparaciones(tipo, periodoId), {
+    page: 1,
+    limit: LIMITE_HISTORIAL,
+  })
+  const item = r.data.find((p) => p.id === id)
+  if (!item) throw new Error('No se encontró la importación en el historial.')
+  return loteImportacion(item)
+}
+
 export const useImportarHabilitados = (pid?: string) =>
   useMutacion({
-    fn: async (archivo: File) => {
-      const fd = new FormData()
-      fd.append('archivo', archivo)
-      const { id } = await api.post<{ id: string }>(
-        `/periodos/${pid}/importaciones/estudiantes/validar`,
-        fd,
-      )
-      recordarPreparacion(id, pid!)
-      // se espera la validación y, si no hay errores, se confirma la carga
-      let prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      for (let i = 0; prep.estado === 'VALIDANDO' && i < 40; i++) {
-        await esperar(1500)
-        prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      }
-      if (prep.estado === 'LISTA') {
-        await api.post(`${rutaPreparacion(pid!, id)}/confirmar`, {})
-        prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      }
-      return lote(prep)
-    },
+    fn: (archivo: File) => validarYConfirmar('ESTUDIANTES', archivo, pid),
     invalida: [K.lotes, K.habilitados],
     exito: (l) =>
       l.estado === 'FALLIDO'
-        ? 'El archivo tiene errores; revise el detalle de la importación.'
+        ? 'El archivo tiene errores; revise el detalle en el diálogo de importación.'
         : 'Importación confirmada; se procesará en segundo plano.',
   })
 
-export const useLotes = (filtros: { tipo?: string; periodoId?: string }) =>
-  useQuery({
-    queryKey: [...K.lotes, filtros],
+/**
+ * Historial reciente de importaciones desde el backend (más recientes primero). Mientras alguna
+ * está en proceso se consulta cada 1,5 s; al completarse se refresca la tabla correspondiente.
+ */
+export const useLotes = (filtros: { tipo?: string; periodoId?: string }) => {
+  const qc = useQueryClient()
+  const tipo: LoteImportacion['tipo'] = filtros.tipo === 'DOCENTES' ? 'DOCENTES' : 'ESTUDIANTES'
+  const queryKey = [...K.lotes, filtros]
+  return useQuery({
+    queryKey,
+    enabled: tipo === 'DOCENTES' || !!filtros.periodoId,
     queryFn: async () => {
-      if (filtros.tipo !== 'ESTUDIANTES') return []
-      const propias = preparacionesGuardadas().filter(
-        (p) => !filtros.periodoId || p.periodoId === filtros.periodoId,
+      if (filtros.tipo && filtros.tipo !== tipo) return []
+      const r = await api.get<Pagina<ImportacionHistorialB>>(
+        rutaPreparaciones(tipo, filtros.periodoId),
+        { page: 1, limit: LIMITE_HISTORIAL },
       )
-      const preps = await Promise.all(
-        propias.map((p) =>
-          api.get<PreparacionB>(rutaPreparacion(p.periodoId, p.id)).catch(() => null),
-        ),
+      const lotes = r.data.map(loteImportacion)
+      // la carga confirmada termina en segundo plano: al completarse se refresca la tabla
+      const enProceso = new Set(
+        (qc.getQueryData<LoteImportacion[]>(queryKey) ?? [])
+          .filter((l) => l.estado === 'EN_PROCESO')
+          .map((l) => l.id),
       )
-      return preps.filter((p): p is PreparacionB => !!p).map(lote)
+      if (lotes.some((l) => l.estado !== 'EN_PROCESO' && enProceso.has(l.id)))
+        void qc.invalidateQueries({ queryKey: tipo === 'DOCENTES' ? K.docentes : K.habilitados })
+      return lotes
     },
     refetchInterval: (q) => (q.state.data?.some((l) => l.estado === 'EN_PROCESO') ? 1500 : false),
   })
+}
 
 // ── Carga tutorial ──
 export const useConfigCarga = (pid?: string) =>

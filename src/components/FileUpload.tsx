@@ -73,7 +73,8 @@ export function FileUpload({
           <UploadCloudIcon className="size-8 text-muted-foreground" aria-hidden />
           <span className="text-sm font-medium">{etiqueta}</span>
           <span className="text-xs text-muted-foreground">
-            Formatos: {extensiones.map((e) => e.toUpperCase()).join(', ')} · Máximo{' '}
+            {extensiones.length === 1 ? 'Formato' : 'Formatos'}:{' '}
+            {extensiones.map((e) => e.toUpperCase()).join(', ')} · Máximo{' '}
             {formatoBytes(reglas.maxBytes)}
           </span>
           <input

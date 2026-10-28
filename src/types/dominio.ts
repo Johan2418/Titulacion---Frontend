@@ -198,6 +198,9 @@ export interface LoteImportacion {
   errores?: { fila: number; mensaje: string }[] | null
   fechaInicio: ISODate
   fechaFin?: ISODate | null
+  /** La vista previa venció sin completarse; se conserva en el historial. */
+  expirada?: boolean
+  solicitadaPor?: { id: UUID; nombres: string; apellidos: string } | null
 }
 
 export interface Tema {

@@ -47,6 +47,8 @@ interface Opciones {
   body?: unknown
   signal?: AbortSignal
   headers?: Record<string, string>
+  /** Devuelve el cuerpo binario (p. ej. una plantilla XLSX) en lugar de JSON. */
+  blob?: boolean
 }
 
 let obtenerToken: () => string | null | Promise<string | null> = () => null
@@ -123,6 +125,7 @@ async function solicitar<T>(
     return solicitar<T>(metodo, path, opts, true)
 
   if (res.status === 204) return undefined as T
+  if (opts.blob && res.ok) return (await res.blob()) as T
   const texto = await res.text()
   let datos: unknown
   try {
@@ -190,4 +193,5 @@ export const api = {
   put: <T>(path: string, body?: unknown) => solicitar<T>('PUT', path, { body }),
   patch: <T>(path: string, body?: unknown) => solicitar<T>('PATCH', path, { body }),
   delete: <T>(path: string) => solicitar<T>('DELETE', path),
+  blob: (path: string) => solicitar<Blob>('GET', path, { blob: true }),
 }
