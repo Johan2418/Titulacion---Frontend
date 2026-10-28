@@ -110,6 +110,22 @@ export const usePostular = () => {
   })
 }
 
+/**
+ * Completa las preferencias de tutor de una postulación PENDIENTE que aún no las tiene. El
+ * backend lo admite una sola vez, dentro del plazo y solo para el titular o el representante.
+ */
+export const useCompletarTutores = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: ({ id, tutores }: { id: string; tutores: string[] }) =>
+      api.post<TutorPropuestoB[]>(`/periodos/${periodoId}/postulaciones/${id}/tutores-propuestos`, {
+        tutoresPropuestos: tutores,
+      }),
+    invalida: [K.postulaciones, K.me],
+    exito: 'Preferencias de tutor registradas.',
+  })
+}
+
 export const useCancelarPostulacion = () => {
   const { periodoId } = usePeriodo()
   return useMutacion({

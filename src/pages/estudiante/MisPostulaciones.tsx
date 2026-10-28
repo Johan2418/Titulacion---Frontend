@@ -8,13 +8,14 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { CompletarTutoresDialog } from '@/features/postulaciones/CompletarTutoresDialog'
 import { useCancelarPostulacion, useMisPostulaciones } from '@/features/postulaciones/api'
 import { formatFechaHora } from '@/lib/fechas'
 import { ESTADO_POSTULACION, MODALIDAD } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 
 export default function MisPostulaciones() {
-  const { periodoId } = usePeriodo()
+  const { periodo, periodoId } = usePeriodo()
   const usuario = useUsuario()
   const query = useMisPostulaciones(periodoId)
   const cancelar = useCancelarPostulacion()
@@ -43,6 +44,12 @@ export default function MisPostulaciones() {
                 const puedeCancelar =
                   (p.estado === 'PENDIENTE' || p.estado === 'EN_CONFLICTO') &&
                   p.registradaPor.id === usuario.id
+                // el backend admite registrar tutores una sola vez, si aún no hay lista y en plazo
+                const puedeCompletarTutores =
+                  p.estado === 'PENDIENTE' &&
+                  p.tutoresPropuestos.length === 0 &&
+                  p.registradaPor.id === usuario.id &&
+                  periodo?.estado === 'POSTULACION_ABIERTA'
                 return (
                   <Card key={p.id}>
                     <CardHeader className="flex-row flex-wrap items-start justify-between gap-2 space-y-0">
@@ -81,6 +88,10 @@ export default function MisPostulaciones() {
                       </div>
                       <div>
                         <p className="mb-1 font-medium">Tutores propuestos</p>
+                        {p.tutoresPropuestos.length === 0 && (
+                          <p className="text-muted-foreground">Sin tutores propuestos.</p>
+                        )}
+                        {puedeCompletarTutores && <CompletarTutoresDialog postulacion={p} />}
                         <ol className="list-inside list-decimal text-muted-foreground">
                           {p.tutoresPropuestos.map((t) => (
                             <li key={t.id}>
