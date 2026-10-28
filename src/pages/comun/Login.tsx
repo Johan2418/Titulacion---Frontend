@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router'
 import { GraduationCapIcon, InfoIcon, KeyRoundIcon, LogInIcon } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
+import { CamposNuevaClave } from '@/auth/CamposNuevaClave'
+import { validarClave } from '@/auth/clave'
 import { restablecerClave, solicitarRecuperacion } from '@/auth/backend'
 import { RUTA_INICIO } from '@/auth/RoleGuard'
 import { Campo } from '@/components/Campo'
@@ -11,18 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { mensajeError } from '@/lib/errores'
 
-/** Límites de la contraseña personal definidos por el backend. */
-const CLAVE_MIN = 15
-const CLAVE_MAX = 128
-
 type Vista = 'ingreso' | 'recuperar' | 'restablecer'
-
-function validarClave(clave: string, confirmacion: string) {
-  if (clave.length < CLAVE_MIN || clave.length > CLAVE_MAX)
-    return `La contraseña debe tener entre ${CLAVE_MIN} y ${CLAVE_MAX} caracteres.`
-  if (clave !== confirmacion) return 'Las contraseñas no coinciden.'
-  return null
-}
 
 function useEnvio() {
   const [enviando, setEnviando] = useState(false)
@@ -100,51 +91,6 @@ function FormIngreso({ alRecuperar }: { alRecuperar: () => void }) {
           </Button>
         </form>
       </CardContent>
-    </>
-  )
-}
-
-function CamposNuevaClave({
-  clave,
-  confirmacion,
-  setClave,
-  setConfirmacion,
-}: {
-  clave: string
-  confirmacion: string
-  setClave: (v: string) => void
-  setConfirmacion: (v: string) => void
-}) {
-  return (
-    <>
-      <Campo
-        etiqueta="Nueva contraseña"
-        requerido
-        ayuda={`Entre ${CLAVE_MIN} y ${CLAVE_MAX} caracteres.`}
-      >
-        {(p) => (
-          <Input
-            {...p}
-            type="password"
-            autoComplete="new-password"
-            value={clave}
-            onChange={(e) => setClave(e.target.value)}
-            required
-          />
-        )}
-      </Campo>
-      <Campo etiqueta="Confirmar contraseña" requerido>
-        {(p) => (
-          <Input
-            {...p}
-            type="password"
-            autoComplete="new-password"
-            value={confirmacion}
-            onChange={(e) => setConfirmacion(e.target.value)}
-            required
-          />
-        )}
-      </Campo>
     </>
   )
 }

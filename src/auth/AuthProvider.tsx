@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { configurarCliente } from '@/api/client'
 import type { SesionUsuario } from '@/types/dominio'
 import {
+  cambiarClave as pedirCambioClave,
   cargarPerfil as pedirPerfil,
   descartarToken,
   establecerClaveInicial,
@@ -33,6 +34,11 @@ interface AuthContexto {
   iniciarSesion: (email: string, password: string) => Promise<void>
   /** Primer acceso: fija la contraseña personal y vuelve a ingresar con ella. */
   cambiarClaveInicial: (password: string) => Promise<void>
+  /**
+   * Cambia la contraseña de la cuenta con sesión iniciada. El backend revoca las sesiones; se
+   * vuelve a ingresar con la nueva contraseña y, si no es posible, se pide iniciar sesión.
+   */
+  cambiarClave: (actual: string, nueva: string) => Promise<void>
   cerrarSesion: () => Promise<void>
   /** Vuelve a consultar el perfil (p. ej. tras un 503). */
   reintentar: () => Promise<void>
@@ -120,6 +126,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [emailPrimerAcceso, iniciarSesion],
   )
 
+  const cambiarClave = useCallback(
+    async (actual: string, nueva: string) => {
+      const email = usuario?.email
+      await pedirCambioClave(actual, nueva)
+      try {
+        if (!email) throw new Error('Sin correo de sesión')
+        await iniciarSesion(email, nueva)
+      } catch {
+        queryClient.clear()
+        setUsuario(null)
+        setAviso('Contraseña actualizada. Vuelve a ingresar con tu nueva contraseña.')
+        setEstado('anonimo')
+      }
+    },
+    [usuario, iniciarSesion, queryClient],
+  )
+
   const reintentar = useCallback(async () => {
     setEstado('cargando')
     await cargarPerfil()
@@ -141,10 +164,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       aviso,
       iniciarSesion,
       cambiarClaveInicial,
+      cambiarClave,
       cerrarSesion,
       reintentar,
     }),
-    [estado, usuario, aviso, iniciarSesion, cambiarClaveInicial, cerrarSesion, reintentar],
+    [
+      estado,
+      usuario,
+      aviso,
+      iniciarSesion,
+      cambiarClaveInicial,
+      cambiarClave,
+      cerrarSesion,
+      reintentar,
+    ],
   )
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>
 }

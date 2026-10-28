@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PlusIcon, Trash2Icon } from 'lucide-react'
+import { BanIcon, PlusIcon } from 'lucide-react'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
@@ -16,7 +16,7 @@ import {
   useCargaTutorial,
   useConfigCarga,
   useDocentes,
-  useEliminarConfigCarga,
+  useDesactivarConfigCarga,
   useGuardarConfigCarga,
 } from '@/features/catalogos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
@@ -94,7 +94,7 @@ export default function CargaTutorial() {
   const carga = useCargaTutorial(periodoId)
   const docentes = useDocentes({ habilitadoTutoria: true })
   const guardar = useGuardarConfigCarga(periodoId)
-  const eliminar = useEliminarConfigCarga()
+  const desactivar = useDesactivarConfigCarga(periodoId)
   const [docenteId, setDocenteId] = useState('')
 
   if (!periodoId) return <Vacio titulo="Seleccione un período" />
@@ -210,10 +210,12 @@ export default function CargaTutorial() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => eliminar.mutate(c.id)}
-                      aria-label={`Quitar límite de ${nombreCompleto(c.docente)}`}
+                      disabled={desactivar.isPending}
+                      onClick={() => desactivar.mutate(c.id)}
+                      aria-label={`Desactivar límite de ${nombreCompleto(c.docente)}`}
+                      title="Desactivar: el docente vuelve al límite global"
                     >
-                      <Trash2Icon />
+                      <BanIcon />
                     </Button>
                   </li>
                 ))}

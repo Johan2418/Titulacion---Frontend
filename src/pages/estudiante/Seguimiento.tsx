@@ -161,7 +161,8 @@ export default function Seguimiento() {
                       Estás habilitado de forma condicionada. Debes cumplir el requisito pendiente{' '}
                       <strong>«{s.habilitacion.requisitoPendiente}»</strong> antes del inicio de
                       titulación ({formatFecha(s.periodo?.fechaInicioTitulacion)}). Mientras tanto
-                      puedes conformar grupo, postular y recibir asignación.
+                      puedes conformar grupo, postular y recibir asignación. Si no se resuelve antes
+                      del inicio de titulación, tu habilitación quedará suspendida.
                     </p>
                   ) : (
                     <p>{s.habilitacion.observacionIngreso ?? 'Resolución registrada.'}</p>

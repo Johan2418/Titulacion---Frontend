@@ -5,7 +5,6 @@ import {
   estudianteResumen,
   persona,
   postulacion,
-  tutorPropuesto,
   type AsignacionTemaB,
   type PersonaB,
   type PostulacionB,
@@ -32,46 +31,31 @@ export interface FiltrosPostulacion {
   modalidad?: Modalidad | ''
 }
 
-const tutoresDe = async (periodoId: string, id: string) =>
-  (
-    await api.todas<TutorPropuestoB>(
-      `/periodos/${periodoId}/postulaciones/${id}/tutores-propuestos`,
-    )
-  )
-    .map(tutorPropuesto)
-    .sort((a, b) => a.ordenPrioridad - b.ordenPrioridad)
-
-/** Completa cada postulación con sus tutores propuestos y, si se indica, su asignación vigente. */
-async function completar(
-  periodoId: string,
-  ps: PostulacionB[],
-  vigentes?: AsignacionTemaB[],
-): Promise<Postulacion[]> {
+/** El backend embebe los tutores propuestos en cada postulación (sin una consulta por fila). */
+const completar = (ps: PostulacionB[], vigentes?: AsignacionTemaB[]): Postulacion[] => {
   const asignacionPorPostulacion = new Map(vigentes?.map((a) => [a.postulacionId, a.id]))
-  return Promise.all(
-    ps.map(async (p) =>
-      postulacion(p, {
-        tutores: await tutoresDe(periodoId, p.id),
-        asignacionVigenteId: asignacionPorPostulacion.get(p.id) ?? null,
-      }),
-    ),
+  return ps.map((p) =>
+    postulacion(p, { asignacionVigenteId: asignacionPorPostulacion.get(p.id) ?? null }),
   )
 }
 
 export const usePostulaciones = (f: FiltrosPostulacion) => {
   const { rol } = useUsuario()
   return useQuery({
-    queryKey: [...K.postulaciones, f],
+    queryKey: [...K.postulaciones, f, rol],
     queryFn: async () => {
       const base = `/periodos/${f.periodoId}`
       const [ps, vigentes] = await Promise.all([
-        api.todas<PostulacionB>(`${base}/postulaciones`, { temaId: f.temaId, estado: f.estado }),
-        api.todas<AsignacionTemaB>(`${base}/asignaciones-tema`, { estado: 'VIGENTE' }),
+        api.todas<PostulacionB>(`${base}/postulaciones`, {
+          temaId: f.temaId,
+          estado: f.estado,
+          modalidad: f.modalidad,
+        }),
+        rol === 'ADMIN'
+          ? api.todas<AsignacionTemaB>(`${base}/asignaciones-tema`, { estado: 'VIGENTE' })
+          : Promise.resolve(undefined),
       ])
-      const filtradas = f.modalidad
-        ? ps.filter((p) => (p.grupoId ? 'GRUPAL' : 'INDIVIDUAL') === f.modalidad)
-        : ps
-      return completar(f.periodoId!, filtradas, rol === 'ADMIN' ? vigentes : undefined)
+      return completar(ps, vigentes)
     },
     enabled: !!f.periodoId,
   })
@@ -81,10 +65,8 @@ export const usePostulacion = (id?: string) => {
   const { periodoId } = usePeriodo()
   return useQuery({
     queryKey: [...K.postulaciones, 'detalle', id],
-    queryFn: async () => {
-      const p = await api.get<PostulacionB>(`/periodos/${periodoId}/postulaciones/${id}`)
-      return (await completar(periodoId!, [p]))[0]
-    },
+    queryFn: async () =>
+      postulacion(await api.get<PostulacionB>(`/periodos/${periodoId}/postulaciones/${id}`)),
     enabled: !!id && !!periodoId,
   })
 }
@@ -93,10 +75,7 @@ export const useMisPostulaciones = (periodoId?: string) =>
   useQuery({
     queryKey: [...K.postulaciones, 'mias', periodoId],
     queryFn: async () =>
-      completar(
-        periodoId!,
-        await api.todas<PostulacionB>(`/periodos/${periodoId}/postulaciones/me`),
-      ),
+      completar(await api.todas<PostulacionB>(`/periodos/${periodoId}/postulaciones/me`)),
     enabled: !!periodoId,
   })
 
@@ -128,6 +107,22 @@ export const usePostular = () => {
       ),
     invalida: FLUJO,
     exito: 'Postulación registrada.',
+  })
+}
+
+/**
+ * Completa las preferencias de tutor de una postulación PENDIENTE que aún no las tiene. El
+ * backend lo admite una sola vez, dentro del plazo y solo para el titular o el representante.
+ */
+export const useCompletarTutores = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: ({ id, tutores }: { id: string; tutores: string[] }) =>
+      api.post<TutorPropuestoB[]>(`/periodos/${periodoId}/postulaciones/${id}/tutores-propuestos`, {
+        tutoresPropuestos: tutores,
+      }),
+    invalida: [K.postulaciones, K.me],
+    exito: 'Preferencias de tutor registradas.',
   })
 }
 
@@ -169,6 +164,7 @@ interface ConflictoDetalleB {
     id: string
     estado: EstadoPostulacion
     grupoId: string | null
+    grupoNombre?: string | null
     estudianteId: string | null
     numIntegrantes: number
     fechaPostulacion: string
@@ -176,9 +172,6 @@ interface ConflictoDetalleB {
     participantes: PersonaB[]
   }[]
 }
-
-const detalleConflicto = (periodoId: string, temaId: string) =>
-  api.get<ConflictoDetalleB>(`/periodos/${periodoId}/temas/${temaId}/conflicto`)
 
 const postulacionDeConflicto = (
   d: ConflictoDetalleB,
@@ -195,7 +188,7 @@ const postulacionDeConflicto = (
     },
     periodoId: d.periodoId,
     modalidad: p.grupoId ? 'GRUPAL' : 'INDIVIDUAL',
-    grupo: p.grupoId ? { id: p.grupoId, nombre: 'Grupo' } : null,
+    grupo: p.grupoId ? { id: p.grupoId, nombre: p.grupoNombre ?? '' } : null,
     estudiante: p.estudianteId ? (integrantes[0] ?? null) : null,
     integrantes,
     numIntegrantes: p.numIntegrantes,
@@ -206,10 +199,22 @@ const postulacionDeConflicto = (
   }
 }
 
-const conflictosPorEstado = async (periodoId: string, estado: 'SIN_RESOLVER' | 'RESUELTO') => {
-  const temas = await api.todas<ConflictoTemaB>(`/periodos/${periodoId}/conflictos`, { estado })
-  return Promise.all(temas.map((t) => detalleConflicto(periodoId, t.temaId)))
-}
+/** El listado ya trae candidaturas y resolución de cada tema (sin una consulta por conflicto). */
+const conflictosPorEstado = async (
+  periodoId: string,
+  estado: 'SIN_RESOLVER' | 'RESUELTO',
+): Promise<ConflictoDetalleB[]> =>
+  (
+    await api.todas<ConflictoTemaB & Omit<ConflictoDetalleB, 'periodoId' | 'tema'>>(
+      `/periodos/${periodoId}/conflictos`,
+      { estado },
+    )
+  ).map(({ resolucion, postulaciones, ...tema }) => ({
+    periodoId,
+    tema,
+    resolucion,
+    postulaciones,
+  }))
 
 export const useConflictos = (periodoId?: string) =>
   useQuery({

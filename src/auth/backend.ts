@@ -80,6 +80,15 @@ export async function establecerClaveInicial(password: string) {
   descartarToken()
 }
 
+/**
+ * Cambio de contraseña con sesión iniciada. El backend revoca todas las sesiones vigentes, así
+ * que el token actual deja de servir y hay que volver a ingresar con la nueva contraseña.
+ */
+export async function cambiarClave(actual: string, nueva: string) {
+  await api.post<void>('/auth/change-password', { currentPassword: actual, password: nueva })
+  descartarToken()
+}
+
 export async function solicitarRecuperacion(email: string) {
   return api.post<{ message: string }>('/auth/forgot-password', { email })
 }

@@ -124,7 +124,8 @@ export default function Panel() {
                   {r.condicionadosPendientes} estudiante(s) condicionado(s) sin resolver
                 </AlertTitle>
                 <AlertDescription>
-                  No se puede iniciar la titulación hasta resolver su ingreso (RN-02).{' '}
+                  Si no se resuelven antes del inicio de titulación, quedarán suspendidos y no
+                  admitidos (RN-02).{' '}
                   <Link to="/admin/habilitados" className="font-medium underline">
                     Resolver ahora
                   </Link>

@@ -198,6 +198,9 @@ export interface LoteImportacion {
   errores?: { fila: number; mensaje: string }[] | null
   fechaInicio: ISODate
   fechaFin?: ISODate | null
+  /** La vista previa venció sin completarse; se conserva en el historial. */
+  expirada?: boolean
+  solicitadaPor?: { id: UUID; nombres: string; apellidos: string } | null
 }
 
 export interface Tema {
@@ -417,8 +420,9 @@ export interface Notificacion {
 }
 
 export interface Auditoria {
-  id: number
-  usuario?: PersonaResumen | null
+  /** bigint del backend serializado como texto. */
+  id: string
+  usuario?: (PersonaResumen & { rol: Rol }) | null
   accion: string
   entidadTipo: string
   entidadId?: UUID | null

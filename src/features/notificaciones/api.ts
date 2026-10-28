@@ -1,15 +1,32 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/api/client'
+import { api, type Pagina } from '@/api/client'
 import { K } from '@/api/claves'
 import { useMutacion } from '@/api/mutacion'
 import type { Notificacion } from '@/types/dominio'
 
-/** RF-16: se consulta periódicamente para reflejar nuevas notificaciones. */
+/** RF-16: el contador de no leídas se consulta periódicamente (consulta liviana para la campana). */
+export const useContadorNoLeidas = () =>
+  useQuery({
+    queryKey: [...K.notificaciones, 'contador'],
+    queryFn: async () =>
+      (await api.get<{ total: number }>('/notificaciones/no-leidas/contador')).total,
+    refetchInterval: 30_000,
+  })
+
+/** Primera página de la bandeja; la campana solo la consulta mientras el panel está abierto. */
+export const useNotificacionesRecientes = (habilitado: boolean, limite = 10) =>
+  useQuery({
+    queryKey: [...K.notificaciones, 'recientes', limite],
+    queryFn: async () =>
+      (await api.get<Pagina<Notificacion>>('/notificaciones', { page: 1, limit: limite })).data,
+    enabled: habilitado,
+  })
+
+/** Bandeja completa (página de notificaciones); sin sondeo periódico. */
 export const useNotificaciones = () =>
   useQuery({
-    queryKey: K.notificaciones,
+    queryKey: [...K.notificaciones, 'todas'],
     queryFn: () => api.todas<Notificacion>('/notificaciones'),
-    refetchInterval: 30_000,
   })
 
 export const useMarcarLeida = () =>
@@ -18,12 +35,9 @@ export const useMarcarLeida = () =>
     invalida: [K.notificaciones],
   })
 
-/** El backend marca de a una; se recorren las no leídas. */
+/** Un único POST: el backend marca todas las notificaciones propias en un solo UPDATE. */
 export const useMarcarTodasLeidas = () =>
   useMutacion({
-    fn: async () => {
-      const pendientes = await api.todas<Notificacion>('/notificaciones', { leida: false })
-      await Promise.all(pendientes.map((n) => api.post<void>(`/notificaciones/${n.id}/leer`, {})))
-    },
+    fn: () => api.post<{ actualizadas: number }>('/notificaciones/leer-todas'),
     invalida: [K.notificaciones],
   })

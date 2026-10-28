@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, noDisponible, oNulo } from '@/api/client'
+import { api, oNulo } from '@/api/client'
 import {
   documentoPat,
   estudianteResumen,
   plantilla,
-  type AsignacionTemaB,
   type DocumentoPatB,
+  type PersonaB,
   type PlantillaB,
   type UrlFirmadaB,
 } from '@/api/adaptadores'
@@ -37,16 +37,13 @@ export const usePlantillaVigente = (pid?: string) =>
     enabled: !!pid,
   })
 
-/** Al publicar una versión, el backend la deja como la única vigente del período. */
+/**
+ * Al publicar una versión, el backend la deja como la única vigente del período desde hoy y
+ * cierra la vigencia de la anterior. Solo recibe versión y archivo (sin fechas de vigencia).
+ */
 export const useSubirPlantilla = (pid?: string) =>
   useMutacion({
-    fn: async (b: {
-      archivo: File
-      version: string
-      activar: boolean
-      fechaVigenciaInicio?: string
-      fechaVigenciaFin?: string
-    }): Promise<PlantillaPat> => {
+    fn: async (b: { archivo: File; version: string }): Promise<PlantillaPat> => {
       const fd = new FormData()
       fd.append('version', b.version)
       fd.append('archivo', b.archivo)
@@ -54,12 +51,6 @@ export const useSubirPlantilla = (pid?: string) =>
     },
     invalida: [K.pat],
     exito: 'Plantilla publicada. Es la vigente del período.',
-  })
-
-export const useActivarPlantilla = () =>
-  useMutacion<PlantillaPat, string>({
-    fn: async () => noDisponible('Reactivar una versión anterior de la plantilla'),
-    invalida: [K.pat],
   })
 
 /** RNF-12: el backend devuelve una URL prefirmada de vigencia limitada. Sin `id`, la vigente. */
@@ -119,35 +110,39 @@ export const useSubirPat = (asignacionId?: string) => {
   })
 }
 
-/** Bandeja de revisión: última versión del PAT de cada trabajo vigente del período. */
+interface UltimaPatB {
+  asignacionTemaId: string
+  tema: { id: string; titulo: string }
+  participantes: PersonaB[]
+  estado: EstadoDocumentoPat | 'SIN_ENTREGA'
+  documento: DocumentoPatB | null
+}
+
+/**
+ * Bandeja de revisión: última versión del PAT de cada trabajo vigente del período, en una sola
+ * consulta al backend (GET /periodos/:pid/documentos-pat/ultimas, ADMIN).
+ */
 export const useBandejaPat = (periodoId?: string, estado?: EstadoDocumentoPat | '') =>
   useQuery({
     queryKey: [...K.pat, 'bandeja', periodoId, estado],
-    queryFn: async () => {
-      const asignaciones = await api.todas<AsignacionTemaB>(
-        `/periodos/${periodoId}/asignaciones-tema`,
-        { estado: 'VIGENTE' },
+    queryFn: async () =>
+      (
+        await api.todas<UltimaPatB>(`/periodos/${periodoId}/documentos-pat/ultimas`, {
+          estado: estado || undefined,
+        })
       )
-      const docs = await Promise.all(
-        asignaciones.map(async (a) => {
-          const d = await oNulo(
-            api.get<DocumentoPatB>(
-              `/periodos/${periodoId}/asignaciones-tema/${a.id}/documentos-pat/ultima`,
-            ),
-          )
-          return d
-            ? {
-                ...documentoPat(d),
-                tema: a.tema,
-                integrantes: a.participantes.map(estudianteResumen),
-              }
-            : null
-        }),
-      )
-      return docs
-        .filter((d): d is NonNullable<typeof d> => !!d && (!estado || d.estado === estado))
-        .sort((a, b) => a.fechaCarga.localeCompare(b.fechaCarga))
-    },
+        .flatMap((u) =>
+          u.documento
+            ? [
+                {
+                  ...documentoPat(u.documento),
+                  tema: u.tema,
+                  integrantes: u.participantes.map(estudianteResumen),
+                },
+              ]
+            : [],
+        )
+        .sort((a, b) => a.fechaCarga.localeCompare(b.fechaCarga)),
     enabled: !!periodoId,
   })
 

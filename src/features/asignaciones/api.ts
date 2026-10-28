@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, ApiError, noDisponible, oNulo } from '@/api/client'
+import { api, oNulo } from '@/api/client'
 import {
   asignacionDesdeTutoria,
   asignacionTema,
@@ -119,14 +119,28 @@ export const useAsignarTema = () => {
   })
 }
 
-export const useAnularAsignacion = () =>
-  useMutacion<
+/**
+ * Anulación manual (ADMIN): la asignación queda ANULADA, se termina el tutor vigente, la
+ * postulación pasa a ANULADA y el tema vuelve a PUBLICADO.
+ */
+export const useAnularAsignacion = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion<
     AsignacionTema,
     { id: string; causaAnulacion: CausaAnulacion; motivoAnulacion: string }
   >({
-    fn: async () => noDisponible('La anulación manual de asignaciones'),
+    fn: async ({ id, causaAnulacion, motivoAnulacion }) =>
+      asignacionTema(
+        await api.post<AsignacionTemaB>(`/periodos/${periodoId}/asignaciones-tema/${id}/anular`, {
+          causa: causaAnulacion,
+          motivo: motivoAnulacion.trim(),
+        }),
+      ),
+    // afecta tema, postulación, tutorías, carga y notificaciones
     invalida: FLUJO,
+    exito: 'Asignación anulada. El tema volvió a estar disponible.',
   })
+}
 
 export const useHistorialTutores = (asignacionId?: string) => {
   const { periodoId } = usePeriodo()
@@ -138,8 +152,6 @@ export const useHistorialTutores = (asignacionId?: string) => {
   })
 }
 
-export const CODIGO_ADVERTENCIA_CARGA = 'CARGA_TUTORIAL_ADVERTENCIA'
-
 interface ResultadoAsignacionTutorB {
   asignacion: AsignacionTutorB
   advertencias: string[]
@@ -148,6 +160,8 @@ interface ResultadoAsignacionTutorB {
 /**
  * Asigna el tutor; si ya hay uno vigente, lo reemplaza. Cuando el docente figura entre los
  * tutores propuestos se envía la propuesta para registrar el tipo PROPUESTO_CONFIRMADO.
+ * Control de carga (RN-11): en modo advertir el backend asigna y devuelve `advertencias` en la
+ * respuesta exitosa; en modo bloquear responde 409 con el motivo (se notifica como error).
  */
 export const useAsignarTutor = () => {
   const { periodoId } = usePeriodo()
@@ -160,7 +174,6 @@ export const useAsignarTutor = () => {
       asignacionId: string
       docenteId: string
       motivoCambio?: string
-      confirmarExceso?: boolean
     }) => {
       const base = `/periodos/${periodoId}`
       const [vigentes, propuestos] = await Promise.all([
@@ -195,8 +208,6 @@ export const useAsignarTutor = () => {
         `${r.docente.nombres} ${r.docente.apellidos} asignado(a) como tutor(a).`,
         ...r.advertencias,
       ].join(' '),
-    // la advertencia de carga se resuelve con un diálogo de confirmación en el componente
-    silenciarError: (e: ApiError) => e.code === CODIGO_ADVERTENCIA_CARGA,
   })
 }
 

@@ -1,19 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
-import { api, noDisponible } from '@/api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, type Pagina } from '@/api/client'
 import {
   cargaDocente,
   configCarga,
   docente,
   estudiante,
   habilitado,
-  type CargaActualB,
+  loteImportacion,
+  type CargaPeriodoB,
   type ConfigCargaB,
   type DocenteB,
   type EstudianteB,
+  type EstadoPreparacionB,
   type HabilitadoB,
+  type ImportacionHistorialB,
 } from '@/api/adaptadores'
 import { K } from '@/api/claves'
-import { useMutacion } from '@/api/mutacion'
+import { descargarUrl, useMutacion } from '@/api/mutacion'
 import { useUsuario } from '@/auth/AuthProvider'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import type {
@@ -25,7 +28,6 @@ import type {
   LineaInvestigacion,
   LoteImportacion,
   SituacionIngreso,
-  Usuario,
 } from '@/types/dominio'
 
 /** Quita las claves `undefined` para no enviar propiedades que el backend no espera. */
@@ -77,35 +79,76 @@ export type DocenteInput = Pick<
   departamento?: string
 }
 
-/** Alta en dos pasos: cuenta DOCENTE (envía la clave temporal) y luego su perfil. */
+/**
+ * Alta atómica (cuenta DOCENTE + clave temporal por correo + perfil en una sola llamada) o
+ * edición. El correo es el usuario de acceso y nunca se envía al editar.
+ */
 export const useGuardarDocente = () =>
   useMutacion({
-    fn: async ({ id, ...b }: Partial<DocenteInput> & { id?: string; estado?: string }) => {
-      if (id) noDisponible('La edición de docentes')
-      const cuenta = await api.post<Usuario>('/usuarios', {
-        email: b.email,
-        nombres: b.nombres,
-        apellidos: b.apellidos,
-        rol: 'DOCENTE',
-      })
-      return docente(
-        await api.post<DocenteB>('/docentes', {
-          usuarioId: cuenta.id,
-          cedula: b.cedula,
-          tituloAcademico: b.tituloAcademico ?? '',
-          departamento: b.departamento ?? '',
-          habilitadoTutoria: b.habilitadoTutoria ?? false,
-        }),
-      )
-    },
+    fn: async ({
+      id,
+      email,
+      ...b
+    }: Partial<DocenteInput> & { id?: string; estado?: Docente['estado'] }) =>
+      docente(
+        id
+          ? await api.patch<DocenteB>(
+              `/docentes/${id}`,
+              definidos({
+                nombres: b.nombres?.trim(),
+                apellidos: b.apellidos?.trim(),
+                cedula: b.cedula?.trim(),
+                tituloAcademico: b.tituloAcademico?.trim() || undefined,
+                departamento: b.departamento?.trim() || undefined,
+                habilitadoTutoria: b.habilitadoTutoria,
+                estado: b.estado,
+              }),
+            )
+          : await api.post<DocenteB>('/docentes', {
+              email: email?.trim(),
+              nombres: b.nombres?.trim(),
+              apellidos: b.apellidos?.trim(),
+              cedula: b.cedula?.trim(),
+              tituloAcademico: b.tituloAcademico?.trim() ?? '',
+              departamento: b.departamento?.trim() ?? '',
+              habilitadoTutoria: b.habilitadoTutoria ?? false,
+            }),
+      ),
     invalida: [K.docentes, K.carga],
-    exito: 'Docente registrado. Recibirá por correo su clave temporal.',
+    exito: (_d, v) =>
+      v.id ? 'Docente actualizado.' : 'Docente registrado. Recibirá por correo su clave temporal.',
   })
 
-export const useImportarDocentes = () =>
-  useMutacion<LoteImportacion, File>({
-    fn: async () => noDisponible('La importación de docentes'),
-    invalida: [K.lotes],
+const RUTA_IMPORTACION_DOCENTES = '/importaciones/docentes'
+
+/** Descarga la plantilla XLSX de docentes (requiere sesión ADMIN). */
+export async function descargarPlantillaDocentes() {
+  const blob = await api.blob(`${RUTA_IMPORTACION_DOCENTES}/plantilla`)
+  const url = URL.createObjectURL(blob)
+  try {
+    descargarUrl(url, 'plantilla-docentes-titulacion.xlsx')
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+}
+
+/** Descarga la plantilla XLSX de estudiantes (requiere sesión ADMIN). */
+export async function descargarPlantillaEstudiantes() {
+  const blob = await api.blob('/importaciones/estudiantes/plantilla')
+  const url = URL.createObjectURL(blob)
+  try {
+    descargarUrl(url, 'plantilla-estudiantes-titulacion.xlsx')
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+}
+
+/** Reenvía el correo de acceso con una nueva clave temporal (ADMIN). */
+export const useReenviarAcceso = () =>
+  useMutacion({
+    fn: (usuarioId: string) => api.post<unknown>(`/usuarios/${usuarioId}/reenviar-acceso`),
+    invalida: [K.docentes],
+    exito: 'Se reenvió el correo de acceso con una nueva clave temporal.',
   })
 
 // ── Estudiantes / habilitados ──
@@ -132,13 +175,9 @@ export const useHabilitados = (pid?: string, opciones: { sinGrupo?: boolean } = 
       if (opciones.sinGrupo && rol === 'ESTUDIANTE')
         return (
           await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados/candidatos-invitacion`)
-        ).map((h) => habilitado(h))
-      const [registros, perfiles] = await Promise.all([
-        api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`),
-        listarEstudiantes(),
-      ])
-      const porId = new Map(perfiles.map((e) => [e.id, e]))
-      return registros.map((h) => habilitado(h, porId))
+        ).map(habilitado)
+      // el backend ya incluye correo, cédula, carrera y nivel en cada habilitación (ADMIN)
+      return (await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`)).map(habilitado)
     },
     enabled: !!pid,
   })
@@ -163,16 +202,33 @@ export const useHabilitar = (pid?: string) =>
     exito: 'Estudiante habilitado.',
   })
 
-export const useActualizarHabilitado = () =>
-  useMutacion<
-    EstudianteHabilitado,
-    { id: string } & Partial<
-      Pick<EstudianteHabilitado, 'estado' | 'condicionIngreso' | 'requisitoPendiente'>
-    >
-  >({
-    fn: async () => noDisponible('La edición de una habilitación'),
+/**
+ * Edita la condición de ingreso. El backend siempre deja la habilitación en HABILITADO:
+ * REGULAR queda ADMITIDO y CONDICIONADO queda PENDIENTE con su requisito.
+ */
+export const useActualizarHabilitado = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({
+      id,
+      condicionIngreso,
+      requisitoPendiente,
+    }: {
+      id: string
+      condicionIngreso: 'REGULAR' | 'CONDICIONADO'
+      requisitoPendiente?: string | null
+    }): Promise<EstudianteHabilitado> =>
+      habilitado(
+        await api.patch<HabilitadoB>(`/periodos/${periodoId}/habilitados/${id}`, {
+          condicionIngreso,
+          requisitoPendiente:
+            condicionIngreso === 'CONDICIONADO' ? requisitoPendiente?.trim() : null,
+        }),
+      ),
     invalida: [K.habilitados, K.periodos],
+    exito: 'Habilitación actualizada.',
   })
+}
 
 export const useResolverIngreso = () => {
   const { periodoId } = usePeriodo()
@@ -200,118 +256,110 @@ export const useResolverIngreso = () => {
 
 // ── Importación de estudiantes (Excel) ──
 /**
- * El backend valida el archivo en segundo plano (preparación) y luego se confirma.
- * Las preparaciones de la sesión se recuerdan aquí para listarlas como lotes.
+ * El backend valida el archivo en segundo plano (preparación) y luego se confirma. El historial
+ * (incluidas las preparaciones vencidas) se consulta en el backend, no en el navegador.
  */
 interface PreparacionB {
   id: string
-  periodoId: string
-  nombreArchivo: string
-  estado: 'VALIDANDO' | 'LISTA' | 'INVALIDA' | 'EN_COLA' | 'PROCESANDO' | 'COMPLETADA' | 'FALLIDA'
-  totalFilas: number
-  errores: { fila: number; columna?: string; mensaje: string }[]
-  creadaEn: string
+  estado: EstadoPreparacionB
 }
 
-const CLAVE_PREPARACIONES = 'titulacion.preparacionesImportacion'
+const rutaPreparaciones = (tipo: LoteImportacion['tipo'], periodoId?: string) =>
+  tipo === 'DOCENTES'
+    ? RUTA_IMPORTACION_DOCENTES
+    : `/periodos/${periodoId}/importaciones/estudiantes`
 
-function preparacionesGuardadas(): { id: string; periodoId: string }[] {
-  try {
-    return JSON.parse(sessionStorage.getItem(CLAVE_PREPARACIONES) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function recordarPreparacion(id: string, periodoId: string) {
-  try {
-    const previas = preparacionesGuardadas().filter((p) => p.id !== id)
-    sessionStorage.setItem(
-      CLAVE_PREPARACIONES,
-      JSON.stringify([{ id, periodoId }, ...previas].slice(0, 20)),
-    )
-  } catch {
-    // sin almacenamiento: solo no se listará
-  }
-}
-
-const ESTADO_LOTE: Record<PreparacionB['estado'], LoteImportacion['estado']> = {
-  VALIDANDO: 'EN_PROCESO',
-  LISTA: 'EN_PROCESO',
-  EN_COLA: 'EN_PROCESO',
-  PROCESANDO: 'EN_PROCESO',
-  COMPLETADA: 'COMPLETADO',
-  INVALIDA: 'FALLIDO',
-  FALLIDA: 'FALLIDO',
-}
-
-const lote = (p: PreparacionB): LoteImportacion => ({
-  id: p.id,
-  periodoId: p.periodoId,
-  tipo: 'ESTUDIANTES',
-  nombreArchivo: p.nombreArchivo,
-  estado: ESTADO_LOTE[p.estado],
-  totalFilas: p.totalFilas,
-  filasOk: p.estado === 'COMPLETADA' ? p.totalFilas : 0,
-  filasError: p.errores.length,
-  errores: p.errores.map((e) => ({
-    fila: e.fila,
-    mensaje: e.columna ? `${e.columna}: ${e.mensaje}` : e.mensaje,
-  })),
-  fechaInicio: p.creadaEn,
-})
-
-const rutaPreparacion = (pid: string, id: string) =>
-  `/periodos/${pid}/importaciones/estudiantes/${id}`
+/** Cantidad de importaciones recientes que se muestran (primera página del historial). */
+const LIMITE_HISTORIAL = 20
 
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-export const useImportarHabilitados = (pid?: string) =>
+/** Envía el archivo, espera la validación y, si no hay errores, confirma la carga. */
+async function validarYConfirmar(
+  tipo: LoteImportacion['tipo'],
+  archivo: File,
+  periodoId?: string,
+): Promise<LoteImportacion> {
+  const base = rutaPreparaciones(tipo, periodoId)
+  const fd = new FormData()
+  fd.append('archivo', archivo)
+  const { id } = await api.post<{ id: string }>(`${base}/validar`, fd)
+  let prep = await api.get<PreparacionB>(`${base}/${id}`)
+  for (let i = 0; prep.estado === 'VALIDANDO' && i < 40; i++) {
+    await esperar(1500)
+    prep = await api.get<PreparacionB>(`${base}/${id}`)
+  }
+  if (prep.estado === 'LISTA') await api.post(`${base}/${id}/confirmar`, {})
+  return buscarEnHistorial(tipo, id, periodoId)
+}
+
+/** Devuelve la preparación desde el historial (incluye contadores y errores por fila). */
+async function buscarEnHistorial(
+  tipo: LoteImportacion['tipo'],
+  id: string,
+  periodoId?: string,
+): Promise<LoteImportacion> {
+  const r = await api.get<Pagina<ImportacionHistorialB>>(rutaPreparaciones(tipo, periodoId), {
+    page: 1,
+    limit: LIMITE_HISTORIAL,
+  })
+  const item = r.data.find((p) => p.id === id)
+  if (!item) throw new Error('No se encontró la importación en el historial.')
+  return loteImportacion(item)
+}
+
+/** Importación de docentes con la plantilla XLSX propia; no depende del período. */
+export const useImportarDocentes = () =>
   useMutacion({
-    fn: async (archivo: File) => {
-      const fd = new FormData()
-      fd.append('archivo', archivo)
-      const { id } = await api.post<{ id: string }>(
-        `/periodos/${pid}/importaciones/estudiantes/validar`,
-        fd,
-      )
-      recordarPreparacion(id, pid!)
-      // se espera la validación y, si no hay errores, se confirma la carga
-      let prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      for (let i = 0; prep.estado === 'VALIDANDO' && i < 40; i++) {
-        await esperar(1500)
-        prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      }
-      if (prep.estado === 'LISTA') {
-        await api.post(`${rutaPreparacion(pid!, id)}/confirmar`, {})
-        prep = await api.get<PreparacionB>(rutaPreparacion(pid!, id))
-      }
-      return lote(prep)
-    },
-    invalida: [K.lotes, K.habilitados],
+    fn: (archivo: File) => validarYConfirmar('DOCENTES', archivo),
+    invalida: [K.lotes, K.docentes],
     exito: (l) =>
       l.estado === 'FALLIDO'
-        ? 'El archivo tiene errores; revise el detalle de la importación.'
+        ? 'El archivo tiene errores; revise el detalle en el diálogo de importación.'
         : 'Importación confirmada; se procesará en segundo plano.',
   })
 
-export const useLotes = (filtros: { tipo?: string; periodoId?: string }) =>
-  useQuery({
-    queryKey: [...K.lotes, filtros],
+export const useImportarHabilitados = (pid?: string) =>
+  useMutacion({
+    fn: (archivo: File) => validarYConfirmar('ESTUDIANTES', archivo, pid),
+    invalida: [K.lotes, K.habilitados],
+    exito: (l) =>
+      l.estado === 'FALLIDO'
+        ? 'El archivo tiene errores; revise el detalle en el diálogo de importación.'
+        : 'Importación confirmada; se procesará en segundo plano.',
+  })
+
+/**
+ * Historial reciente de importaciones desde el backend (más recientes primero). Mientras alguna
+ * está en proceso se consulta cada 1,5 s; al completarse se refresca la tabla correspondiente.
+ */
+export const useLotes = (filtros: { tipo?: string; periodoId?: string }) => {
+  const qc = useQueryClient()
+  const tipo: LoteImportacion['tipo'] = filtros.tipo === 'DOCENTES' ? 'DOCENTES' : 'ESTUDIANTES'
+  const queryKey = [...K.lotes, filtros]
+  return useQuery({
+    queryKey,
+    enabled: tipo === 'DOCENTES' || !!filtros.periodoId,
     queryFn: async () => {
-      if (filtros.tipo !== 'ESTUDIANTES') return []
-      const propias = preparacionesGuardadas().filter(
-        (p) => !filtros.periodoId || p.periodoId === filtros.periodoId,
+      if (filtros.tipo && filtros.tipo !== tipo) return []
+      const r = await api.get<Pagina<ImportacionHistorialB>>(
+        rutaPreparaciones(tipo, filtros.periodoId),
+        { page: 1, limit: LIMITE_HISTORIAL },
       )
-      const preps = await Promise.all(
-        propias.map((p) =>
-          api.get<PreparacionB>(rutaPreparacion(p.periodoId, p.id)).catch(() => null),
-        ),
+      const lotes = r.data.map(loteImportacion)
+      // la carga confirmada termina en segundo plano: al completarse se refresca la tabla
+      const enProceso = new Set(
+        (qc.getQueryData<LoteImportacion[]>(queryKey) ?? [])
+          .filter((l) => l.estado === 'EN_PROCESO')
+          .map((l) => l.id),
       )
-      return preps.filter((p): p is PreparacionB => !!p).map(lote)
+      if (lotes.some((l) => l.estado !== 'EN_PROCESO' && enProceso.has(l.id)))
+        void qc.invalidateQueries({ queryKey: tipo === 'DOCENTES' ? K.docentes : K.habilitados })
+      return lotes
     },
     refetchInterval: (q) => (q.state.data?.some((l) => l.estado === 'EN_PROCESO') ? 1500 : false),
   })
+}
 
 // ── Carga tutorial ──
 export const useConfigCarga = (pid?: string) =>
@@ -350,22 +398,32 @@ export const useGuardarConfigCarga = (pid?: string) =>
     exito: 'Configuración de carga guardada.',
   })
 
-export const useEliminarConfigCarga = () =>
-  useMutacion<void, string>({
-    fn: async () => noDisponible('La eliminación de un límite específico'),
+/**
+ * El backend no borra límites: el específico se desactiva (queda como historial) y el docente
+ * vuelve a regirse por el límite global del período.
+ */
+export const useDesactivarConfigCarga = (pid?: string) =>
+  useMutacion({
+    fn: (id: string) =>
+      api.post<ConfigCargaB>(`/periodos/${pid}/config-carga-tutorial/${id}/desactivar`),
     invalida: [K.carga],
+    exito: 'Límite específico desactivado; el docente vuelve al límite global.',
   })
 
+/** Una sola consulta: carga actual y límite efectivo de cada docente del período. */
 export const useCargaTutorial = (pid?: string) =>
   useQuery({
     queryKey: [...K.carga, 'docentes', pid],
-    queryFn: async (): Promise<CargaDocente[]> => {
-      const docentes = await listarDocentes()
-      return Promise.all(
-        docentes.map(async (d) =>
-          cargaDocente(await api.get<CargaActualB>(`/periodos/${pid}/carga-tutorial/${d.id}`), d),
-        ),
-      )
-    },
+    queryFn: async (): Promise<CargaDocente[]> =>
+      (await api.todas<CargaPeriodoB>(`/periodos/${pid}/carga-tutorial`)).map((c) =>
+        cargaDocente(c, {
+          id: c.docente.id,
+          nombres: c.docente.nombres,
+          apellidos: c.docente.apellidos,
+          email: c.docente.email ?? '',
+          cedula: c.docente.cedula,
+          habilitadoTutoria: c.docente.habilitadoTutoria,
+        }),
+      ),
     enabled: !!pid,
   })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { DownloadIcon, FileSpreadsheetIcon } from 'lucide-react'
+import { DownloadIcon, FileSpreadsheetIcon, RotateCcwIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { DataTable } from '@/components/DataTable'
@@ -13,6 +13,7 @@ import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import {
   descargarExportacion,
   useExportaciones,
+  useReintentarExportacion,
   useSolicitarExportacion,
 } from '@/features/reportes/api'
 import { mensajeError } from '@/lib/errores'
@@ -34,6 +35,7 @@ export default function Reportes() {
   const [formato, setFormato] = useState<FormatoExportacion>('XLSX')
   const query = useExportaciones()
   const solicitar = useSolicitarExportacion()
+  const reintentar = useReintentarExportacion()
 
   const columnas: ColumnDef<SolicitudExportacion>[] = [
     {
@@ -81,6 +83,15 @@ export default function Reportes() {
             }
           >
             <DownloadIcon /> {expirado ? 'Expirado' : 'Descargar'}
+          </Button>
+        ) : row.original.estado === 'FALLIDO' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reintentar.isPending}
+            onClick={() => reintentar.mutate(row.original.id)}
+          >
+            <RotateCcwIcon /> Reintentar
           </Button>
         ) : null
       },

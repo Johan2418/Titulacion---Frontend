@@ -36,6 +36,13 @@ describe('conversión de claves', () => {
 })
 
 describe('cliente HTTP', () => {
+  it('descarga binarios sin interpretarlos como JSON', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(new Uint8Array([80, 75, 3, 4]), { status: 200 }),
+    )
+    const blob = await api.blob('/importaciones/docentes/plantilla')
+    expect(blob.size).toBe(4)
+  })
   it('recorre todas las páginas de un listado', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, noDisponible } from '@/api/client'
+import { api } from '@/api/client'
 import {
   postulacion,
   tema,
@@ -104,19 +104,38 @@ export const useGuardarTema = () => {
 
 export type AccionTema = 'publicar' | 'cerrar' | 'retirar'
 
+/**
+ * RF-21 / RF-25. `publicar` publica un BORRADOR o reabre un tema CERRADO; `cerrar` y
+ * `retirar` exigen motivo y el backend rechaza las postulaciones abiertas del tema.
+ */
 export const useAccionTema = () => {
   const { periodoId } = usePeriodo()
   return useMutacion({
-    fn: async ({ id, accion }: { id: string; accion: AccionTema; motivo?: string }) => {
-      if (accion !== 'publicar')
-        noDisponible(accion === 'cerrar' ? 'El cierre de temas' : 'El retiro de temas')
-      return tema(await api.post<TemaB>(`/periodos/${periodoId}/temas/${id}/publicar`, {}))
-    },
+    fn: async ({
+      id,
+      accion,
+      motivo,
+    }: {
+      id: string
+      accion: AccionTema
+      motivo?: string
+      /** true cuando `publicar` se usa sobre un tema CERRADO. */
+      reabrir?: boolean
+    }) =>
+      tema(
+        await api.post<TemaB>(
+          `/periodos/${periodoId}/temas/${id}/${accion}`,
+          accion === 'publicar' ? {} : { motivo: motivo?.trim() ?? '' },
+        ),
+      ),
+    // cerrar/retirar rechazan postulaciones: refrescar todo el flujo
     invalida: FLUJO,
     exito: (_t, v) =>
-      ({ publicar: 'Tema publicado.', cerrar: 'Tema cerrado.', retirar: 'Tema retirado.' })[
-        v.accion
-      ],
+      ({
+        publicar: v.reabrir ? 'Tema reabierto.' : 'Tema publicado.',
+        cerrar: 'Tema cerrado. Sus postulaciones abiertas fueron rechazadas.',
+        retirar: 'Tema retirado. Sus postulaciones abiertas fueron rechazadas.',
+      })[v.accion],
   })
 }
 

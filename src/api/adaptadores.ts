@@ -3,7 +3,9 @@
  * El backend devuelve resúmenes más pequeños (p. ej. personas sin email ni cédula); los campos
  * que no envía se completan con valores neutros para que las pantallas no cambien.
  */
+import { clavesASnake } from './casos'
 import type {
+  Auditoria,
   AsignacionTema,
   AsignacionTutor,
   CargaDocente,
@@ -17,8 +19,10 @@ import type {
   Grupo,
   Invitacion,
   ISODate,
+  LoteImportacion,
   Modalidad,
   PersonaResumen,
+  Rol,
   PlantillaPat,
   Postulacion,
   ResultadoRevision,
@@ -63,8 +67,10 @@ export interface HabilitadoB extends Omit<
 > {
   periodoId: UUID
   estudianteId: UUID
-  estudiante: PersonaB
+  /** Correo, cédula, carrera y nivel llegan en las respuestas para ADMIN o el propio estudiante. */
+  estudiante: PersonaB & { cedula?: string; carrera?: string; nivel?: number }
   resueltoPorId: UUID | null
+  resueltoPor?: PersonaB | null
 }
 
 export interface TemaB {
@@ -135,6 +141,8 @@ export interface PostulacionB {
   estado: Postulacion['estado']
   fechaPostulacion: ISODate
   observacion: string | null
+  /** Tutores propuestos embebidos por el backend (cargados en lote). */
+  tutoresPropuestos?: TutorPropuestoB[]
 }
 
 export interface TutorPropuestoB {
@@ -167,6 +175,7 @@ export interface AsignacionTemaB {
   motivo: string | null
   causaAnulacion: AsignacionTema['causaAnulacion']
   motivoAnulacion: string | null
+  anuladaPor?: PersonaB | null
   fechaAnulacion: ISODate | null
 }
 
@@ -196,6 +205,8 @@ export interface ConfigCargaB {
   docenteId: UUID | null
   maxTrabajos: number
   bloquearAlSuperar: boolean
+  /** false: límite específico desactivado (historial). */
+  activa?: boolean
 }
 
 export interface CargaActualB {
@@ -203,6 +214,11 @@ export interface CargaActualB {
   cargaActual: number
   origen: 'DOCENTE' | 'GLOBAL' | 'SIN_CONFIGURACION'
   configuracion: { id: UUID; maxTrabajos: number; bloquearAlSuperar: boolean } | null
+}
+
+/** GET /periodos/:pid/carga-tutorial: carga y límite efectivo de cada docente. */
+export interface CargaPeriodoB extends CargaActualB {
+  docente: PersonaB & { cedula: string; habilitadoTutoria: boolean; estado: string }
 }
 
 export interface PlantillaB {
@@ -303,21 +319,17 @@ export const estudiante = (e: EstudianteB): Estudiante => ({
   email: e.usuario.email,
 })
 
-export const habilitado = (
-  h: HabilitadoB,
-  perfiles?: Map<UUID, Estudiante>,
-): EstudianteHabilitado => {
-  const perfil = perfiles?.get(h.estudianteId)
+export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
   return {
     id: h.id,
     periodoId: h.periodoId,
     estudiante: {
       ...estudianteResumen(h.estudiante),
       id: h.estudianteId,
-      email: perfil?.email ?? '',
-      cedula: perfil?.cedula ?? '',
-      carrera: perfil?.carrera ?? '',
-      nivel: perfil?.nivel ?? 0,
+      email: h.estudiante.email ?? '',
+      cedula: h.estudiante.cedula ?? '',
+      carrera: h.estudiante.carrera ?? '',
+      nivel: h.estudiante.nivel ?? 0,
     },
     origen: h.origen,
     loteImportacionId: h.loteImportacionId,
@@ -327,7 +339,7 @@ export const habilitado = (
     situacionIngreso: h.situacionIngreso,
     fechaHabilitacion: h.fechaHabilitacion,
     fechaResolucionIngreso: h.fechaResolucionIngreso,
-    resueltoPor: null,
+    resueltoPor: h.resueltoPor ? persona(h.resueltoPor) : null,
     observacionIngreso: h.observacionIngreso,
   }
 }
@@ -410,6 +422,11 @@ export const postulacion = (
   extra: { tutores?: TutorPropuesto[]; asignacionVigenteId?: UUID | null } = {},
 ): Postulacion => {
   const integrantes = p.participantes.map(estudianteResumen)
+  const tutores =
+    extra.tutores ??
+    (p.tutoresPropuestos ?? [])
+      .map(tutorPropuesto)
+      .sort((a, b) => a.ordenPrioridad - b.ordenPrioridad)
   return {
     id: p.id,
     tema: p.tema,
@@ -423,7 +440,7 @@ export const postulacion = (
     estado: p.estado,
     fechaPostulacion: p.fechaPostulacion,
     observacion: p.observacion,
-    tutoresPropuestos: extra.tutores ?? [],
+    tutoresPropuestos: tutores,
     asignacionVigenteId: extra.asignacionVigenteId ?? null,
   }
 }
@@ -460,7 +477,7 @@ export const asignacionTema = (
     motivo: a.motivo,
     causaAnulacion: a.causaAnulacion,
     motivoAnulacion: a.motivoAnulacion,
-    anuladaPor: null,
+    anuladaPor: a.anuladaPor ? persona(a.anuladaPor) : null,
     fechaAnulacion: a.fechaAnulacion,
     tutorVigente: extra.tutorVigente ?? null,
     estadoPat: extra.estadoPat ?? null,
@@ -529,6 +546,8 @@ export const plantilla = (p: PlantillaB): PlantillaPat => ({
   fechaVigenciaFin: p.fechaVigenciaFin,
   publicadaPor: persona(p.publicador),
   activa: p.activa,
+  // El backend no expone fecha de creación: publicar fija `fecha_vigencia_inicio` al día de la
+  // publicación, así que es la fecha (sin hora) en que se publicó la versión.
   creadoEn: p.fechaVigenciaInicio ?? '',
 })
 
@@ -554,4 +573,93 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
   fechaCarga: d.fechaCarga,
   estado: d.revision,
   revision: d.detalleRevision ? revision(d.detalleRevision) : null,
+})
+
+// ── Auditoría ──
+export interface AuditoriaB {
+  id: string
+  actor: PersonaB & { rol: Rol }
+  accion: string
+  entidadTipo: string
+  entidadId: UUID
+  valoresAnteriores: Record<string, unknown> | null
+  valoresNuevos: Record<string, unknown> | null
+  ipOrigen: string | null
+  fechaHora: ISODate
+}
+
+/** Los valores auditados son JSON libre: se devuelven con sus claves originales (snake_case). */
+const valoresOriginales = (v: Record<string, unknown> | null) =>
+  v ? (clavesASnake(v) as Record<string, unknown>) : null
+
+export const auditoria = (a: AuditoriaB): Auditoria => ({
+  id: String(a.id),
+  usuario: { ...persona(a.actor), rol: a.actor.rol },
+  accion: a.accion,
+  entidadTipo: a.entidadTipo,
+  entidadId: a.entidadId,
+  valoresAnteriores: valoresOriginales(a.valoresAnteriores),
+  valoresNuevos: valoresOriginales(a.valoresNuevos),
+  ipOrigen: a.ipOrigen,
+  fechaHora: a.fechaHora,
+})
+
+// ── Historial de importaciones ──
+export type EstadoPreparacionB =
+  'VALIDANDO' | 'LISTA' | 'INVALIDA' | 'EN_COLA' | 'PROCESANDO' | 'COMPLETADA' | 'FALLIDA'
+
+export interface ImportacionHistorialB {
+  id: UUID
+  tipo: LoteImportacion['tipo']
+  periodoId: UUID | null
+  nombreArchivo: string
+  estado: EstadoPreparacionB
+  expirada: boolean
+  totalFilas: number
+  filasOk: number
+  filasError: number
+  errores: { fila: number; columna?: string; mensaje: string }[]
+  lote: {
+    id: UUID
+    estado: LoteImportacion['estado']
+    totalFilas: number
+    filasOk: number
+    filasError: number
+    fechaInicio: ISODate
+    fechaFin: ISODate | null
+  } | null
+  solicitadaPor: { id: UUID; nombres: string; apellidos: string }
+  creadaEn: ISODate
+  expiraEn: ISODate
+}
+
+const ESTADO_PREPARACION: Record<EstadoPreparacionB, LoteImportacion['estado']> = {
+  VALIDANDO: 'EN_PROCESO',
+  LISTA: 'EN_PROCESO',
+  EN_COLA: 'EN_PROCESO',
+  PROCESANDO: 'EN_PROCESO',
+  COMPLETADA: 'COMPLETADO',
+  INVALIDA: 'FALLIDO',
+  FALLIDA: 'FALLIDO',
+}
+
+/** Una preparación (y su lote, si se completó) como lote de importación del frontend. */
+export const loteImportacion = (p: ImportacionHistorialB): LoteImportacion => ({
+  id: p.id,
+  periodoId: p.periodoId,
+  tipo: p.tipo,
+  nombreArchivo: p.nombreArchivo,
+  // una vista previa vencida ya no avanzará: deja de contarse como en proceso
+  estado: p.lote?.estado ?? (p.expirada ? 'FALLIDO' : ESTADO_PREPARACION[p.estado]),
+  totalFilas: p.lote?.totalFilas ?? p.totalFilas,
+  filasOk: p.filasOk,
+  filasError: p.filasError,
+  errores: p.errores.map((e) => ({
+    fila: e.fila,
+    mensaje: e.columna ? `${e.columna}: ${e.mensaje}` : e.mensaje,
+  })),
+  fechaInicio: p.creadaEn,
+  fechaFin: p.lote?.fechaFin ?? null,
+  expirada: p.expirada,
+  solicitadaPor: p.solicitadaPor,
 })
