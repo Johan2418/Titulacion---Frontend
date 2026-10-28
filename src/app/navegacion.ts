@@ -68,6 +68,7 @@ export const NAVEGACION: Record<Rol, SeccionNav[]> = {
       titulo: 'Proceso',
       items: [
         { to: '/admin/temas', label: 'Temas', icono: BookOpenIcon },
+        { to: '/admin/grupos', label: 'Grupos', icono: UsersIcon },
         { to: '/admin/postulaciones', label: 'Postulaciones', icono: SendIcon },
         { to: '/admin/conflictos', label: 'Conflictos', icono: GitMergeIcon },
         { to: '/admin/asignaciones', label: 'Asignaciones y tutores', icono: ListChecksIcon },

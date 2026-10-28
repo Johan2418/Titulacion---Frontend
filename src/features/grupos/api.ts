@@ -104,3 +104,69 @@ export const useResponderInvitacion = () => {
       })[v.accion],
   })
 }
+
+// ── Administración de grupos (ADMIN) ──
+// El backend solo permite reorganizar antes del inicio de titulación, con postulación abierta o
+// cerrada y sin postulaciones del grupo; los errores llegan con la regla incumplida.
+
+export const useCambiarRepresentanteAdmin = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({
+      grupoId,
+      estudianteId,
+      motivo,
+    }: {
+      grupoId: string
+      estudianteId: string
+      motivo: string
+    }) =>
+      grupo(
+        await api.post<GrupoB>(`/periodos/${periodoId}/grupos/${grupoId}/cambiar-representante`, {
+          estudianteId,
+          motivo: motivo.trim(),
+        }),
+      ),
+    invalida: FLUJO,
+    exito: 'Representante actualizado.',
+  })
+}
+
+export const useRetirarIntegranteAdmin = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({
+      grupoId,
+      estudianteId,
+      motivo,
+      nuevoRepresentanteId,
+    }: {
+      grupoId: string
+      estudianteId: string
+      motivo: string
+      nuevoRepresentanteId?: string
+    }) =>
+      grupo(
+        await api.post<GrupoB>(
+          `/periodos/${periodoId}/grupos/${grupoId}/integrantes/${estudianteId}/retirar`,
+          { motivo: motivo.trim(), nuevoRepresentanteId: nuevoRepresentanteId || undefined },
+        ),
+      ),
+    invalida: FLUJO,
+    exito: 'Integrante retirado del grupo.',
+  })
+}
+
+export const useDisolverGrupoAdmin = () => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: async ({ grupoId, motivo }: { grupoId: string; motivo: string }) =>
+      grupo(
+        await api.post<GrupoB>(`/periodos/${periodoId}/grupos/${grupoId}/disolver`, {
+          motivo: motivo.trim(),
+        }),
+      ),
+    invalida: FLUJO,
+    exito: 'Grupo disuelto.',
+  })
+}
