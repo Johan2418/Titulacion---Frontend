@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { GraduationCapIcon, LogOutIcon, MenuIcon, MoonIcon, SunIcon, XIcon } from 'lucide-react'
+import {
+  GraduationCapIcon,
+  KeyRoundIcon,
+  LogOutIcon,
+  MenuIcon,
+  MoonIcon,
+  SunIcon,
+  XIcon,
+} from 'lucide-react'
 import { useAuth, useUsuario } from '@/auth/AuthProvider'
 import { SelectSimple } from '@/components/Campo'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -18,6 +26,7 @@ import { ESTADO_PERIODO, ROL } from '@/lib/estados'
 import { cn } from '@/lib/utils'
 import { useTema } from '../tema'
 import { NAVEGACION } from '../navegacion'
+import { CambiarClaveDialog } from './CambiarClaveDialog'
 import { CampanaNotificaciones } from './Notificaciones'
 
 function Sidebar({ onNavegar }: { onNavegar?: () => void }) {
@@ -101,6 +110,7 @@ export function AppShell() {
   const { cerrarSesion } = useAuth()
   const { oscuro, alternar } = useTema()
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [cambiandoClave, setCambiandoClave] = useState(false)
   const location = useLocation()
 
   useEffect(() => setMenuAbierto(false), [location.pathname])
@@ -188,11 +198,15 @@ export function AppShell() {
                 <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setCambiandoClave(true)}>
+                <KeyRoundIcon /> Cambiar contraseña
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void cerrarSesion()}>
                 <LogOutIcon /> Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <CambiarClaveDialog abierto={cambiandoClave} onClose={() => setCambiandoClave(false)} />
         </header>
         <main
           id="contenido"
