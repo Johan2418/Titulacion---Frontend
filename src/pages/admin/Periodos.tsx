@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { opcionesFacultades, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import {
   useActualizarPeriodo,
   useCambiarEstadoPeriodo,
@@ -132,20 +133,23 @@ function FormPeriodo({
         }
       >
         {(p) => (
-          <Controller
-            control={control}
-            name="facultadId"
-            render={({ field }) => (
-              <SelectSimple
-                {...p}
-                value={field.value}
-                onChange={field.onChange}
-                disabled={facultadBloqueada}
-                placeholder={facultades.isLoading ? 'Cargando facultades…' : 'Seleccione…'}
-                opciones={opcionesFacultades(facultades.data)}
-              />
-            )}
-          />
+          <>
+            <Controller
+              control={control}
+              name="facultadId"
+              render={({ field }) => (
+                <SelectSimple
+                  {...p}
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={facultadBloqueada}
+                  placeholder={facultades.isLoading ? 'Cargando facultades…' : 'Seleccione…'}
+                  opciones={opcionesFacultades(facultades.data)}
+                />
+              )}
+            />
+            <ErrorCatalogo consulta={facultades} />
+          </>
         )}
       </Campo>
       <Campo etiqueta="Inicio de postulación" requerido error={e.fechaInicioPostulacion?.message}>

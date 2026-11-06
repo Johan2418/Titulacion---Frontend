@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
 import { ESTADO_IMPORTACION } from '@/lib/estados'
 import { formatFechaHora } from '@/lib/fechas'
@@ -81,6 +82,7 @@ export function ImportarArchivo({
   descripcion,
   tipos = TIPOS_IMPORTACION,
   carreras,
+  catalogo,
   importar,
 }: {
   abierto: boolean
@@ -95,6 +97,8 @@ export function ImportarArchivo({
   tipos?: Record<string, string[]>
   /** Carreras elegibles; la importación exige elegir una. */
   carreras: { value: string; label: string }[]
+  /** Consulta del catálogo de carreras: si falla, se avisa y se ofrece reintentar. */
+  catalogo?: { isError: boolean; isRefetching?: boolean; refetch: () => unknown }
   importar: (archivo: File, carreraId: string) => Promise<LoteImportacion>
 }) {
   const [archivo, setArchivo] = useState<File | null>(null)
@@ -130,11 +134,16 @@ export function ImportarArchivo({
           ayuda={
             carreras.length
               ? 'Todas las filas del archivo se registran en esta carrera.'
-              : 'No hay carreras disponibles para esta importación.'
+              : catalogo?.isError
+                ? undefined
+                : 'No hay carreras disponibles para esta importación.'
           }
         >
           {(p) => (
-            <SelectSimple {...p} value={carreraId} onChange={setCarreraId} opciones={carreras} />
+            <>
+              <SelectSimple {...p} value={carreraId} onChange={setCarreraId} opciones={carreras} />
+              {catalogo && <ErrorCatalogo consulta={catalogo} />}
+            </>
           )}
         </Campo>
         <FileUpload

@@ -7,6 +7,7 @@ import { DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useDocentes, useLineas } from '@/features/catalogos/api'
 import { nombreCompleto } from '@/lib/utils'
 import type { Tema } from '@/types/dominio'
@@ -88,29 +89,32 @@ export function FormTema({
         requerido
         error={e.carreraId?.message}
         ayuda={
-          facultades.isLoading || carreras.length
+          facultades.isLoading || facultades.isError || carreras.length
             ? undefined
             : 'La facultad del período no tiene carreras disponibles.'
         }
       >
         {(p) => (
-          <Controller
-            control={control}
-            name="carreraId"
-            render={({ field }) => (
-              <SelectSimple
-                {...p}
-                value={field.value}
-                onChange={(v) => {
-                  if (v === field.value) return
-                  field.onChange(v)
-                  // el docente proponente debe pertenecer a la misma carrera del tema
-                  setValue('docenteProponenteId', '')
-                }}
-                opciones={opcionesCarreras(carreras)}
-              />
-            )}
-          />
+          <>
+            <Controller
+              control={control}
+              name="carreraId"
+              render={({ field }) => (
+                <SelectSimple
+                  {...p}
+                  value={field.value}
+                  onChange={(v) => {
+                    if (v === field.value) return
+                    field.onChange(v)
+                    // el docente proponente debe pertenecer a la misma carrera del tema
+                    setValue('docenteProponenteId', '')
+                  }}
+                  opciones={opcionesCarreras(carreras)}
+                />
+              )}
+            />
+            <ErrorCatalogo consulta={facultades} />
+          </>
         )}
       </Campo>
       <Campo etiqueta="Línea de investigación" requerido error={e.lineaId?.message}>

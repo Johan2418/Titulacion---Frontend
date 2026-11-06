@@ -37,6 +37,7 @@ import {
   useResolverIngreso,
 } from '@/features/catalogos/api'
 import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
@@ -97,6 +98,7 @@ function HabilitarManual({ onClose }: { onClose: () => void }) {
           />
         )}
       </Campo>
+      <ErrorCatalogo consulta={facultades} />
       <Campo etiqueta="Buscar estudiante" ayuda="Por nombre, cédula o matrícula.">
         {(p) => <Input {...p} value={texto} onChange={(e) => setTexto(e.target.value)} />}
       </Campo>
@@ -408,6 +410,9 @@ export default function Habilitados() {
           </>
         }
       />
+      <div className="mb-4 empty:hidden">
+        <ErrorCatalogo consulta={facultades} />
+      </div>
       <ConsultaEstado query={query}>
         {(lista) => (
           <DataTable
@@ -503,6 +508,7 @@ export default function Habilitados() {
           </>
         }
         carreras={carreras}
+        catalogo={facultades}
         importar={(archivo, carrera) => importar.mutateAsync({ archivo, carreraId: carrera })}
       />
     </>

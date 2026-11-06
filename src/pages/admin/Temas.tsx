@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useLineas } from '@/features/catalogos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { AccionesTema } from '@/features/temas/AccionesTema'
@@ -88,6 +89,9 @@ export default function Temas() {
           </Button>
         }
       />
+      <div className="mb-4 empty:hidden">
+        <ErrorCatalogo consulta={facultades} />
+      </div>
       <ConsultaEstado query={query}>
         {(l) => (
           <DataTable

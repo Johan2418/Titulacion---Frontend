@@ -28,6 +28,7 @@ import {
   type DocenteInput,
 } from '@/features/catalogos/api'
 import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
@@ -104,13 +105,16 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
       </Campo>
       <Campo etiqueta="Carrera" requerido error={intentado ? errores.carrera : undefined}>
         {(p) => (
-          <SelectSimple
-            {...p}
-            value={d.carreraId}
-            onChange={(v) => setD({ ...d, carreraId: v })}
-            placeholder={facultades.isLoading ? 'Cargando carreras…' : 'Seleccione…'}
-            opciones={opcionesCarrerasConFacultad(facultades.data)}
-          />
+          <>
+            <SelectSimple
+              {...p}
+              value={d.carreraId}
+              onChange={(v) => setD({ ...d, carreraId: v })}
+              placeholder={facultades.isLoading ? 'Cargando carreras…' : 'Seleccione…'}
+              opciones={opcionesCarrerasConFacultad(facultades.data)}
+            />
+            <ErrorCatalogo consulta={facultades} />
+          </>
         )}
       </Campo>
       <div className="flex items-center gap-2 sm:col-span-2">
@@ -250,6 +254,9 @@ export default function Docentes() {
           </>
         }
       />
+      <div className="mb-4 empty:hidden">
+        <ErrorCatalogo consulta={facultades} />
+      </div>
       <ConsultaEstado query={query}>
         {(l) => (
           <DataTable
@@ -309,6 +316,7 @@ export default function Docentes() {
           </>
         }
         carreras={carreras}
+        catalogo={facultades}
         importar={(archivo, carrera) => importar.mutateAsync({ archivo, carreraId: carrera })}
       />
     </>
