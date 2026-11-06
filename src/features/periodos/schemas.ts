@@ -5,6 +5,7 @@ export const periodoSchema = z
   .object({
     codigo: z.string().trim().min(1, 'Ingrese el código.').max(20, 'Máximo 20 caracteres.'),
     nombre: z.string().trim().min(1, 'Ingrese el nombre.').max(120, 'Máximo 120 caracteres.'),
+    facultadId: z.string().min(1, 'Seleccione la facultad.'),
     fechaInicioPostulacion: z.string().min(1, 'Ingrese la fecha.'),
     fechaFinPostulacion: z.string().min(1, 'Ingrese la fecha.'),
     fechaInicioTitulacion: z.string().min(1, 'Ingrese la fecha.'),

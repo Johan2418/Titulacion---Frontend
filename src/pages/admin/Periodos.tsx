@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PencilIcon, PlusIcon } from 'lucide-react'
-import { Campo } from '@/components/Campo'
+import { Campo, SelectSimple } from '@/components/Campo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado } from '@/components/Estados'
@@ -19,11 +19,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { opcionesFacultades, useFacultades } from '@/features/academico/api'
 import {
   useActualizarPeriodo,
   useCambiarEstadoPeriodo,
   useCrearPeriodo,
   usePeriodos,
+  useResumenPeriodo,
 } from '@/features/periodos/api'
 import { periodoSchema, type PeriodoForm } from '@/features/periodos/schemas'
 import { formatFecha, inputLocalToIso, isoToInputLocal } from '@/lib/fechas'
@@ -52,18 +54,28 @@ function FormPeriodo({
 }) {
   const crear = useCrearPeriodo()
   const actualizar = useActualizarPeriodo()
-  const { register, handleSubmit, formState } = useForm<PeriodoForm>({
+  const facultades = useFacultades()
+  const enBorrador = !periodo || periodo.estado === 'BORRADOR'
+  // la facultad no puede cambiar si el período ya tiene temas o estudiantes habilitados
+  const resumen = useResumenPeriodo(periodo && enBorrador ? periodo.id : undefined)
+  const conDatos =
+    !!resumen.data &&
+    (resumen.data.estudiantesHabilitados > 0 ||
+      Object.values(resumen.data.temasPorEstado).some((n) => n > 0))
+  const facultadBloqueada = !enBorrador || conDatos
+  const { register, handleSubmit, formState, control } = useForm<PeriodoForm>({
     resolver: zodResolver(periodoSchema) as never,
     defaultValues: periodo
       ? {
           codigo: periodo.codigo,
           nombre: periodo.nombre,
+          facultadId: periodo.facultadId,
           fechaInicioPostulacion: isoToInputLocal(periodo.fechaInicioPostulacion),
           fechaFinPostulacion: isoToInputLocal(periodo.fechaFinPostulacion),
           fechaInicioTitulacion: isoToInputLocal(periodo.fechaInicioTitulacion),
           maxIntegrantesDefault: periodo.maxIntegrantesDefault,
         }
-      : { maxIntegrantesDefault: 3 },
+      : { maxIntegrantesDefault: 3, facultadId: '' },
   })
   const e = formState.errors
   // con la postulación cerrada solo se puede extender la fecha fin (para reabrirla)
@@ -105,6 +117,36 @@ function FormPeriodo({
         className="space-y-1.5 sm:col-span-2"
       >
         {(p) => <Input {...p} {...register('nombre')} readOnly={soloFin} />}
+      </Campo>
+      <Campo
+        etiqueta="Facultad"
+        requerido
+        error={e.facultadId?.message}
+        className="space-y-1.5 sm:col-span-2"
+        ayuda={
+          !enBorrador
+            ? 'La facultad solo puede cambiarse mientras el período está en borrador.'
+            : conDatos
+              ? 'La facultad no puede cambiarse porque el período ya tiene temas o estudiantes habilitados.'
+              : 'Los temas, docentes y estudiantes del período se gestionan por carreras de esta facultad.'
+        }
+      >
+        {(p) => (
+          <Controller
+            control={control}
+            name="facultadId"
+            render={({ field }) => (
+              <SelectSimple
+                {...p}
+                value={field.value}
+                onChange={field.onChange}
+                disabled={facultadBloqueada}
+                placeholder={facultades.isLoading ? 'Cargando facultades…' : 'Seleccione…'}
+                opciones={opcionesFacultades(facultades.data)}
+              />
+            )}
+          />
+        )}
       </Campo>
       <Campo etiqueta="Inicio de postulación" requerido error={e.fechaInicioPostulacion?.message}>
         {(p) => (
@@ -237,6 +279,7 @@ export default function Periodos() {
       cell: ({ row }) => <span className="font-medium">{row.original.codigo}</span>,
     },
     { header: 'Nombre', accessorKey: 'nombre' },
+    { header: 'Facultad', accessorFn: (p) => p.facultad?.nombre ?? '—' },
     {
       header: 'Postulación',
       accessorKey: 'fechaInicioPostulacion',

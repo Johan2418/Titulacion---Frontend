@@ -30,12 +30,15 @@ describe('periodoSchema (CHECK de fechas)', () => {
   const p = {
     codigo: '2027-1',
     nombre: 'P',
+    facultadId: 'f1',
     fechaInicioPostulacion: '2027-01-01T08:00',
     fechaFinPostulacion: '2027-01-20T08:00',
     fechaInicioTitulacion: '2027-02-01T08:00',
     maxIntegrantesDefault: 3,
   }
   it('acepta fechas ordenadas', () => expect(periodoSchema.safeParse(p).success).toBe(true))
+  it('exige la facultad', () =>
+    expect(periodoSchema.safeParse({ ...p, facultadId: '' }).success).toBe(false))
   it('rechaza fin de postulación anterior al inicio', () =>
     expect(periodoSchema.safeParse({ ...p, fechaFinPostulacion: '2026-12-01T08:00' }).success).toBe(
       false,
