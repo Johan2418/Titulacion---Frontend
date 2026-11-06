@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { UploadIcon } from 'lucide-react'
+import { Campo, SelectSimple } from '@/components/Campo'
 import { FileUpload } from '@/components/FileUpload'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
 import { ESTADO_IMPORTACION } from '@/lib/estados'
 import { formatFechaHora } from '@/lib/fechas'
@@ -79,6 +81,8 @@ export function ImportarArchivo({
   columnas,
   descripcion,
   tipos = TIPOS_IMPORTACION,
+  carreras,
+  catalogo,
   importar,
 }: {
   abierto: boolean
@@ -91,9 +95,14 @@ export function ImportarArchivo({
   descripcion?: ReactNode
   /** Formatos aceptados; por defecto CSV y XLSX. */
   tipos?: Record<string, string[]>
-  importar: (archivo: File) => Promise<LoteImportacion>
+  /** Carreras elegibles; la importación exige elegir una. */
+  carreras: { value: string; label: string }[]
+  /** Consulta del catálogo de carreras: si falla, se avisa y se ofrece reintentar. */
+  catalogo?: { isError: boolean; isRefetching?: boolean; refetch: () => unknown }
+  importar: (archivo: File, carreraId: string) => Promise<LoteImportacion>
 }) {
   const [archivo, setArchivo] = useState<File | null>(null)
+  const [carreraId, setCarreraId] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState<LoteImportacion | null>(null)
   const lotes = useLotes({ tipo, periodoId })
@@ -104,6 +113,7 @@ export function ImportarArchivo({
       onOpenChange={(o) => {
         if (o) return
         setResultado(null)
+        setCarreraId('')
         onClose()
       }}
     >
@@ -118,6 +128,24 @@ export function ImportarArchivo({
             )}
           </DialogDescription>
         </DialogHeader>
+        <Campo
+          etiqueta="Carrera"
+          requerido
+          ayuda={
+            carreras.length
+              ? 'Todas las filas del archivo se registran en esta carrera.'
+              : catalogo?.isError
+                ? undefined
+                : 'No hay carreras disponibles para esta importación.'
+          }
+        >
+          {(p) => (
+            <>
+              <SelectSimple {...p} value={carreraId} onChange={setCarreraId} opciones={carreras} />
+              {catalogo && <ErrorCatalogo consulta={catalogo} />}
+            </>
+          )}
+        </Campo>
         <FileUpload
           reglas={{ tipos, maxBytes: 5 * 1024 * 1024 }}
           archivo={archivo}
@@ -134,13 +162,13 @@ export function ImportarArchivo({
         )}
         <DialogFooter>
           <Button
-            disabled={!archivo || enviando}
+            disabled={!archivo || !carreraId || enviando}
             onClick={async () => {
-              if (!archivo) return
+              if (!archivo || !carreraId) return
               setEnviando(true)
               setResultado(null)
               try {
-                setResultado(await importar(archivo))
+                setResultado(await importar(archivo, carreraId))
                 setArchivo(null)
               } catch {
                 // notificado por la mutación

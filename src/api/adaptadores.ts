@@ -9,6 +9,7 @@ import type {
   AsignacionTema,
   AsignacionTutor,
   CargaDocente,
+  CarreraResumen,
   ConfigCargaTutorial,
   Docente,
   DocenteResumen,
@@ -48,7 +49,8 @@ export interface DocenteB {
   usuario: Usuario
   cedula: string | null
   tituloAcademico: string | null
-  departamento: string | null
+  carreraId: UUID
+  carrera: CarreraResumen
   habilitadoTutoria: boolean
 }
 
@@ -57,7 +59,8 @@ export interface EstudianteB {
   usuario: Usuario
   cedula: string
   matricula: string
-  carrera: string
+  carreraId: UUID
+  carrera: CarreraResumen
   nivel: number
 }
 
@@ -68,7 +71,7 @@ export interface HabilitadoB extends Omit<
   periodoId: UUID
   estudianteId: UUID
   /** Correo, cédula, carrera y nivel llegan en las respuestas para ADMIN o el propio estudiante. */
-  estudiante: PersonaB & { cedula?: string; carrera?: string; nivel?: number }
+  estudiante: PersonaB & { cedula?: string; carrera?: CarreraResumen; nivel?: number }
   resueltoPorId: UUID | null
   resueltoPor?: PersonaB | null
 }
@@ -76,6 +79,8 @@ export interface HabilitadoB extends Omit<
 export interface TemaB {
   id: UUID
   periodoId: UUID
+  carreraId: UUID
+  carrera: CarreraResumen
   linea: { id: UUID; codigo: string; nombre: string }
   docenteProponente: PersonaB
   titulo: string
@@ -156,7 +161,7 @@ export interface TutorPropuestoB {
 
 export interface TutorDisponibleB extends PersonaB {
   tituloAcademico: string | null
-  departamento: string | null
+  carreraId: UUID
   esProponenteTema: boolean
 }
 
@@ -285,7 +290,7 @@ export const docente = (d: DocenteB): Docente => ({
   usuarioId: d.usuario.id,
   cedula: d.cedula,
   tituloAcademico: d.tituloAcademico,
-  departamento: d.departamento,
+  carrera: d.carrera,
   habilitadoTutoria: d.habilitadoTutoria,
   nombres: d.usuario.nombres,
   apellidos: d.usuario.apellidos,
@@ -299,7 +304,8 @@ export const docenteDisponible = (d: TutorDisponibleB): Docente => ({
   usuarioId: '',
   cedula: '',
   tituloAcademico: d.tituloAcademico,
-  departamento: d.departamento,
+  // el backend solo expone el id de la carrera del tutor disponible
+  carrera: { id: d.carreraId, nombre: '' },
   habilitadoTutoria: true,
   nombres: d.nombres,
   apellidos: d.apellidos,
@@ -328,7 +334,7 @@ export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
       id: h.estudianteId,
       email: h.estudiante.email ?? '',
       cedula: h.estudiante.cedula ?? '',
-      carrera: h.estudiante.carrera ?? '',
+      carrera: h.estudiante.carrera ?? { id: '', nombre: '' },
       nivel: h.estudiante.nivel ?? 0,
     },
     origen: h.origen,
@@ -347,6 +353,7 @@ export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
 export const tema = (t: TemaB): Tema => ({
   id: t.id,
   periodoId: t.periodoId,
+  carrera: t.carrera,
   linea: { id: t.linea.id, nombre: t.linea.nombre },
   docenteProponente: docenteResumen(t.docenteProponente),
   titulo: t.titulo,
@@ -578,7 +585,8 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
 // ── Auditoría ──
 export interface AuditoriaB {
   id: string
-  actor: PersonaB & { rol: Rol }
+  /** Nulo en acciones automáticas del sistema. */
+  actor: (PersonaB & { rol: Rol }) | null
   accion: string
   entidadTipo: string
   entidadId: UUID
@@ -594,7 +602,7 @@ const valoresOriginales = (v: Record<string, unknown> | null) =>
 
 export const auditoria = (a: AuditoriaB): Auditoria => ({
   id: String(a.id),
-  usuario: { ...persona(a.actor), rol: a.actor.rol },
+  usuario: a.actor ? { ...persona(a.actor), rol: a.actor.rol } : null,
   accion: a.accion,
   entidadTipo: a.entidadTipo,
   entidadId: a.entidadId,

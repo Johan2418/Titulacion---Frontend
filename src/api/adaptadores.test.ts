@@ -2,13 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   asignacionTema,
   auditoria,
+  docente,
+  docenteDisponible,
   habilitado,
   loteImportacion,
   postulacion,
   type AsignacionTemaB,
+  type DocenteB,
   type HabilitadoB,
   type ImportacionHistorialB,
   type PostulacionB,
+  type TemaB,
+  type TutorDisponibleB,
+  tema,
 } from './adaptadores'
 import { clavesACamel } from './casos'
 
@@ -82,6 +88,21 @@ describe('auditoria', () => {
     expect(a.valoresNuevos).toEqual({ max_integrantes: 3 })
     expect(a.ipOrigen).toBe('10.0.0.5')
   })
+
+  it('deja el usuario nulo en acciones automáticas del sistema', () => {
+    const b = clavesACamel<Parameters<typeof auditoria>[0]>({
+      id: '10',
+      actor: null,
+      accion: 'CERRAR_POSTULACION',
+      entidad_tipo: 'periodo_titulacion',
+      entidad_id: 'p1',
+      valores_anteriores: { estado: 'POSTULACION_ABIERTA' },
+      valores_nuevos: { estado: 'POSTULACION_CERRADA', automatico: true },
+      ip_origen: null,
+      fecha_hora: '2026-10-02T10:00:00Z',
+    })
+    expect(auditoria(b).usuario).toBeNull()
+  })
 })
 
 describe('postulacion', () => {
@@ -141,7 +162,7 @@ describe('habilitado', () => {
         matricula: 'M1',
         email: 'e1@live.uleam.edu.ec',
         cedula: '1300000001',
-        carrera: 'Software',
+        carrera: { id: 'c1', nombre: 'Software' },
         nivel: 9,
       },
       origen: 'MANUAL',
@@ -160,11 +181,68 @@ describe('habilitado', () => {
     expect(h.estudiante).toMatchObject({
       email: 'e1@live.uleam.edu.ec',
       cedula: '1300000001',
-      carrera: 'Software',
+      carrera: { id: 'c1', nombre: 'Software' },
       nivel: 9,
     })
     expect(h.resueltoPor).toMatchObject({ id: 'u9', nombres: 'Ada', apellidos: 'Admin' })
     expect(habilitado({ ...b, resueltoPor: undefined }).resueltoPor).toBeNull()
+  })
+})
+
+describe('carrera', () => {
+  it('el docente toma la carrera de la respuesta del backend', () => {
+    const b = clavesACamel<DocenteB>({
+      id: 'd1',
+      usuario: {
+        id: 'u1',
+        email: 'd1@uleam.edu.ec',
+        nombres: 'Dora',
+        apellidos: 'Docente',
+        rol: 'DOCENTE',
+        estado: 'ACTIVO',
+        creado_en: '2026-10-01T00:00:00Z',
+      },
+      cedula: null,
+      titulo_academico: null,
+      carrera_id: 'c1',
+      carrera: { id: 'c1', nombre: 'Software' },
+      habilitado_tutoria: true,
+    })
+    const d = docente(b)
+    expect(d.carrera).toEqual({ id: 'c1', nombre: 'Software' })
+    expect(d).not.toHaveProperty('departamento')
+  })
+
+  it('el tutor disponible conserva solo el id de su carrera', () => {
+    const b = clavesACamel<TutorDisponibleB>({
+      id: 'd1',
+      nombres: 'Dora',
+      apellidos: 'Docente',
+      titulo_academico: null,
+      carrera_id: 'c1',
+      es_proponente_tema: false,
+    })
+    expect(docenteDisponible(b).carrera).toEqual({ id: 'c1', nombre: '' })
+  })
+
+  it('el tema incluye su carrera', () => {
+    const b = clavesACamel<TemaB>({
+      id: 't1',
+      periodo_id: 'per1',
+      carrera_id: 'c1',
+      carrera: { id: 'c1', nombre: 'Software' },
+      linea: { id: 'l1', codigo: 'L1', nombre: 'IA' },
+      docente_proponente: { id: 'd1', nombres: 'Dora', apellidos: 'Docente' },
+      titulo: 'Tema',
+      descripcion: 'Desc',
+      min_integrantes: 1,
+      max_integrantes: 3,
+      estado: 'PUBLICADO',
+      creado_en: '2026-10-01T00:00:00Z',
+      disponible: true,
+      postulaciones_abiertas: 0,
+    })
+    expect(tema(b).carrera).toEqual({ id: 'c1', nombre: 'Software' })
   })
 })
 

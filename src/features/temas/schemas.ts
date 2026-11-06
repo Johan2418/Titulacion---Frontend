@@ -9,6 +9,7 @@ export const temaSchema = z
       .min(5, 'El título debe tener al menos 5 caracteres.')
       .max(250, 'Máximo 250 caracteres.'),
     descripcion: z.string().trim().min(10, 'Describa el tema (mínimo 10 caracteres).'),
+    carreraId: z.string().min(1, 'Seleccione la carrera.'),
     lineaId: z.string().min(1, 'Seleccione la línea de investigación.'),
     docenteProponenteId: z.string().min(1, 'Seleccione el docente proponente.'),
     minIntegrantes: z.coerce.number().int().min(1, 'El mínimo debe ser al menos 1.'),

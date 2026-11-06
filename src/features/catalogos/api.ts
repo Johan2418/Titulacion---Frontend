@@ -19,6 +19,7 @@ import { K } from '@/api/claves'
 import { descargarUrl, useMutacion } from '@/api/mutacion'
 import { useUsuario } from '@/auth/AuthProvider'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { formularioImportacion } from './importacion'
 import type {
   CargaDocente,
   ConfigCargaTutorial,
@@ -77,10 +78,10 @@ export type DocenteInput = Pick<
 > & {
   cedula?: string
   tituloAcademico?: string
-  departamento?: string
+  carreraId?: string
 }
 
-/** Cédula, título y departamento son opcionales: vacío al editar se guarda como null. */
+/** Cédula y título son opcionales: vacío al editar se guarda como null. */
 const opcional = (v?: string) => (v === undefined ? undefined : v.trim() || null)
 
 /**
@@ -103,7 +104,7 @@ export const useGuardarDocente = () =>
                 apellidos: b.apellidos?.trim(),
                 cedula: opcional(b.cedula),
                 tituloAcademico: opcional(b.tituloAcademico),
-                departamento: opcional(b.departamento),
+                carreraId: b.carreraId || undefined,
                 habilitadoTutoria: b.habilitadoTutoria,
                 estado: b.estado,
               }),
@@ -114,7 +115,7 @@ export const useGuardarDocente = () =>
               apellidos: b.apellidos?.trim(),
               cedula: opcional(b.cedula) ?? undefined,
               tituloAcademico: opcional(b.tituloAcademico) ?? undefined,
-              departamento: opcional(b.departamento) ?? undefined,
+              carreraId: b.carreraId,
               habilitadoTutoria: b.habilitadoTutoria ?? false,
             }),
       ),
@@ -283,12 +284,14 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
 async function validarYConfirmar(
   tipo: LoteImportacion['tipo'],
   archivo: File,
+  carreraId: string,
   periodoId?: string,
 ): Promise<LoteImportacion> {
   const base = rutaPreparaciones(tipo, periodoId)
-  const fd = new FormData()
-  fd.append('archivo', archivo)
-  const { id } = await api.post<{ id: string }>(`${base}/validar`, fd)
+  const { id } = await api.post<{ id: string }>(
+    `${base}/validar`,
+    formularioImportacion(archivo, carreraId),
+  )
   let prep = await api.get<PreparacionB>(`${base}/${id}`)
   for (let i = 0; prep.estado === 'VALIDANDO' && i < 40; i++) {
     await esperar(1500)
@@ -317,7 +320,8 @@ async function buscarEnHistorial(
 /** Importación de docentes con la plantilla XLSX propia; no depende del período. */
 export const useImportarDocentes = () =>
   useMutacion({
-    fn: (archivo: File) => validarYConfirmar('DOCENTES', archivo),
+    fn: ({ archivo, carreraId }: { archivo: File; carreraId: string }) =>
+      validarYConfirmar('DOCENTES', archivo, carreraId),
     invalida: [K.lotes, K.docentes],
     exito: (l) =>
       l.estado === 'FALLIDO'
@@ -327,7 +331,8 @@ export const useImportarDocentes = () =>
 
 export const useImportarHabilitados = (pid?: string) =>
   useMutacion({
-    fn: (archivo: File) => validarYConfirmar('ESTUDIANTES', archivo, pid),
+    fn: ({ archivo, carreraId }: { archivo: File; carreraId: string }) =>
+      validarYConfirmar('ESTUDIANTES', archivo, carreraId, pid),
     invalida: [K.lotes, K.habilitados],
     exito: (l) =>
       l.estado === 'FALLIDO'

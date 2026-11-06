@@ -14,6 +14,7 @@ export type PeriodoInput = Pick<
   PeriodoTitulacion,
   | 'codigo'
   | 'nombre'
+  | 'facultadId'
   | 'fechaInicioPostulacion'
   | 'fechaFinPostulacion'
   | 'fechaInicioTitulacion'

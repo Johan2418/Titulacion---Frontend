@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PencilIcon, PlusIcon } from 'lucide-react'
-import { Campo } from '@/components/Campo'
+import { Campo, SelectSimple } from '@/components/Campo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado } from '@/components/Estados'
@@ -19,18 +19,24 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { opcionesFacultades, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import {
   useActualizarPeriodo,
   useCambiarEstadoPeriodo,
   useCrearPeriodo,
   usePeriodos,
+  useResumenPeriodo,
 } from '@/features/periodos/api'
 import { periodoSchema, type PeriodoForm } from '@/features/periodos/schemas'
 import { formatFecha, inputLocalToIso, isoToInputLocal } from '@/lib/fechas'
 import { ESTADO_PERIODO } from '@/lib/estados'
 import type { EstadoPeriodo, PeriodoTitulacion } from '@/types/dominio'
 
-/** Transiciones permitidas del período (el backend las valida). */
+/**
+ * Transiciones manuales del período (el backend las valida). Archivar se ofrece aparte en
+ * cualquier estado no archivado. La postulación también se abre y se cierra sola por fechas.
+ */
 const SIGUIENTE: Partial<Record<EstadoPeriodo, { estado: EstadoPeriodo; label: string }[]>> = {
   BORRADOR: [{ estado: 'POSTULACION_ABIERTA', label: 'Abrir postulación' }],
   POSTULACION_ABIERTA: [{ estado: 'POSTULACION_CERRADA', label: 'Cerrar postulación' }],
@@ -38,7 +44,6 @@ const SIGUIENTE: Partial<Record<EstadoPeriodo, { estado: EstadoPeriodo; label: s
     { estado: 'POSTULACION_ABIERTA', label: 'Reabrir postulación' },
     { estado: 'EN_CURSO', label: 'Iniciar titulación' },
   ],
-  EN_CURSO: [{ estado: 'ARCHIVADO', label: 'Archivar' }],
 }
 
 function FormPeriodo({
@@ -50,18 +55,28 @@ function FormPeriodo({
 }) {
   const crear = useCrearPeriodo()
   const actualizar = useActualizarPeriodo()
-  const { register, handleSubmit, formState } = useForm<PeriodoForm>({
+  const facultades = useFacultades()
+  const enBorrador = !periodo || periodo.estado === 'BORRADOR'
+  // la facultad no puede cambiar si el período ya tiene temas o estudiantes habilitados
+  const resumen = useResumenPeriodo(periodo && enBorrador ? periodo.id : undefined)
+  const conDatos =
+    !!resumen.data &&
+    (resumen.data.estudiantesHabilitados > 0 ||
+      Object.values(resumen.data.temasPorEstado).some((n) => n > 0))
+  const facultadBloqueada = !enBorrador || conDatos
+  const { register, handleSubmit, formState, control } = useForm<PeriodoForm>({
     resolver: zodResolver(periodoSchema) as never,
     defaultValues: periodo
       ? {
           codigo: periodo.codigo,
           nombre: periodo.nombre,
+          facultadId: periodo.facultadId,
           fechaInicioPostulacion: isoToInputLocal(periodo.fechaInicioPostulacion),
           fechaFinPostulacion: isoToInputLocal(periodo.fechaFinPostulacion),
           fechaInicioTitulacion: isoToInputLocal(periodo.fechaInicioTitulacion),
           maxIntegrantesDefault: periodo.maxIntegrantesDefault,
         }
-      : { maxIntegrantesDefault: 3 },
+      : { maxIntegrantesDefault: 3, facultadId: '' },
   })
   const e = formState.errors
   // con la postulación cerrada solo se puede extender la fecha fin (para reabrirla)
@@ -103,6 +118,39 @@ function FormPeriodo({
         className="space-y-1.5 sm:col-span-2"
       >
         {(p) => <Input {...p} {...register('nombre')} readOnly={soloFin} />}
+      </Campo>
+      <Campo
+        etiqueta="Facultad"
+        requerido
+        error={e.facultadId?.message}
+        className="space-y-1.5 sm:col-span-2"
+        ayuda={
+          !enBorrador
+            ? 'La facultad solo puede cambiarse mientras el período está en borrador.'
+            : conDatos
+              ? 'La facultad no puede cambiarse porque el período ya tiene temas o estudiantes habilitados.'
+              : 'Los temas, docentes y estudiantes del período se gestionan por carreras de esta facultad.'
+        }
+      >
+        {(p) => (
+          <>
+            <Controller
+              control={control}
+              name="facultadId"
+              render={({ field }) => (
+                <SelectSimple
+                  {...p}
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={facultadBloqueada}
+                  placeholder={facultades.isLoading ? 'Cargando facultades…' : 'Seleccione…'}
+                  opciones={opcionesFacultades(facultades.data)}
+                />
+              )}
+            />
+            <ErrorCatalogo consulta={facultades} />
+          </>
+        )}
       </Campo>
       <Campo etiqueta="Inicio de postulación" requerido error={e.fechaInicioPostulacion?.message}>
         {(p) => (
@@ -167,7 +215,7 @@ function ArchivarPeriodo({ periodo }: { periodo: PeriodoTitulacion }) {
         </Button>
       }
       titulo={`Archivar: ${periodo.codigo}`}
-      descripcion="El período pasará a «Archivado» y ya no admitirá cambios. Se conserva todo su historial."
+      descripcion={`El período pasará de «${ESTADO_PERIODO[periodo.estado].label}» a «${ESTADO_PERIODO.ARCHIVADO.label}» y ya no admitirá cambios. Se conserva todo su historial.`}
       confirmar="Archivar"
       destructivo
       onConfirm={async () => {
@@ -235,6 +283,7 @@ export default function Periodos() {
       cell: ({ row }) => <span className="font-medium">{row.original.codigo}</span>,
     },
     { header: 'Nombre', accessorKey: 'nombre' },
+    { header: 'Facultad', accessorFn: (p) => p.facultad?.nombre ?? '—' },
     {
       header: 'Postulación',
       accessorKey: 'fechaInicioPostulacion',
@@ -268,7 +317,6 @@ export default function Periodos() {
         return (
           <div className="flex flex-wrap justify-end gap-1">
             {(SIGUIENTE[p.estado] ?? []).map((s) => {
-              if (s.estado === 'ARCHIVADO') return <ArchivarPeriodo key={s.estado} periodo={p} />
               if (s.estado === 'EN_CURSO') return <IniciarTitulacion key={s.estado} periodo={p} />
               return (
                 <ConfirmDialog
@@ -284,6 +332,7 @@ export default function Periodos() {
                 />
               )
             })}
+            {p.estado !== 'ARCHIVADO' && <ArchivarPeriodo periodo={p} />}
             {p.estado !== 'ARCHIVADO' && (
               <Button
                 variant="ghost"
@@ -304,7 +353,7 @@ export default function Periodos() {
     <>
       <PageHeader
         titulo="Períodos de titulación"
-        descripcion="Fechas de postulación, inicio de titulación y estado de cada período."
+        descripcion="Fechas de postulación, inicio de titulación y estado de cada período. La postulación se abre y se cierra automáticamente según sus fechas; iniciar la titulación y archivar son acciones manuales."
         acciones={
           <Button onClick={() => setEditando('nuevo')}>
             <PlusIcon /> Nuevo período

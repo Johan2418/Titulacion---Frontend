@@ -124,6 +124,30 @@ export interface SesionUsuario extends Usuario {
   docenteId?: UUID | null
 }
 
+export interface CarreraResumen {
+  id: UUID
+  nombre: string
+}
+
+export interface FacultadResumen {
+  id: UUID
+  nombre: string
+}
+
+export interface CarreraCatalogo {
+  id: UUID
+  codigo: string
+  nombre: string
+}
+
+/** Respuesta de GET /facultades: catálogo fijo con sus carreras, ambos ordenados por nombre. */
+export interface FacultadCatalogo {
+  id: UUID
+  codigo: string
+  nombre: string
+  carreras: CarreraCatalogo[]
+}
+
 export interface PeriodoTitulacion {
   id: UUID
   codigo: string
@@ -133,6 +157,8 @@ export interface PeriodoTitulacion {
   fechaInicioTitulacion: ISODate
   estado: EstadoPeriodo
   maxIntegrantesDefault: number
+  facultadId: UUID
+  facultad: FacultadResumen
   /** Derivado: cantidad de estudiantes CONDICIONADOS con situación PENDIENTE */
   condicionadosPendientes?: number
 }
@@ -142,7 +168,7 @@ export interface Estudiante {
   usuarioId: UUID
   cedula: string
   matricula: string
-  carrera: string
+  carrera: CarreraResumen
   nivel: number
   nombres: string
   apellidos: string
@@ -154,7 +180,7 @@ export interface Docente {
   usuarioId: UUID
   cedula: string | null
   tituloAcademico?: string | null
-  departamento?: string | null
+  carrera: CarreraResumen
   habilitadoTutoria: boolean
   nombres: string
   apellidos: string
@@ -173,7 +199,7 @@ export interface LineaInvestigacion {
 export interface EstudianteHabilitado {
   id: UUID
   periodoId: UUID
-  estudiante: EstudianteResumen & { carrera: string; nivel: number }
+  estudiante: EstudianteResumen & { carrera: CarreraResumen; nivel: number }
   origen: OrigenHabilitacion
   loteImportacionId?: UUID | null
   estado: EstadoHabilitacion
@@ -208,6 +234,7 @@ export interface LoteImportacion {
 export interface Tema {
   id: UUID
   periodoId: UUID
+  carrera: CarreraResumen
   linea: Pick<LineaInvestigacion, 'id' | 'nombre'>
   docenteProponente: DocenteResumen
   titulo: string

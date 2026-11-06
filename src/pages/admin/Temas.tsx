@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useLineas } from '@/features/catalogos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { AccionesTema } from '@/features/temas/AccionesTema'
@@ -23,8 +25,11 @@ export default function Temas() {
   const { periodo, periodoId } = usePeriodo()
   const [estado, setEstado] = useState<EstadoTema | ''>('')
   const [lineaId, setLineaId] = useState('')
+  const [carreraId, setCarreraId] = useState('')
   const lineas = useLineas()
-  const query = useTemas({ periodoId, estado, lineaId })
+  const facultades = useFacultades()
+  const carreras = carrerasDeFacultad(facultades.data, periodo?.facultadId)
+  const query = useTemas({ periodoId, estado, lineaId, carreraId })
   const [editando, setEditando] = useState<Tema | null | 'nuevo'>(null)
 
   const columnas: ColumnDef<Tema>[] = [
@@ -37,6 +42,7 @@ export default function Temas() {
         </Link>
       ),
     },
+    { header: 'Carrera', accessorFn: (t) => t.carrera.nombre },
     { header: 'Línea', accessorFn: (t) => t.linea.nombre },
     { header: 'Proponente', accessorFn: (t) => nombreCompleto(t.docenteProponente) },
     {
@@ -83,6 +89,9 @@ export default function Temas() {
           </Button>
         }
       />
+      <div className="mb-4 empty:hidden">
+        <ErrorCatalogo consulta={facultades} />
+      </div>
       <ConsultaEstado query={query}>
         {(l) => (
           <DataTable
@@ -92,6 +101,14 @@ export default function Temas() {
             placeholderBusqueda="Buscar por título o docente…"
             filtros={
               <>
+                <SelectSimple
+                  aria-label="Filtrar por carrera"
+                  className="sm:w-56"
+                  value={carreraId}
+                  onChange={setCarreraId}
+                  todos="Todas las carreras"
+                  opciones={opcionesCarreras(carreras)}
+                />
                 <SelectSimple
                   aria-label="Filtrar por estado"
                   className="sm:w-44"
@@ -122,6 +139,7 @@ export default function Temas() {
             <FormTema
               tema={editando === 'nuevo' ? null : editando}
               periodoId={periodoId}
+              facultadId={periodo?.facultadId}
               maxDefault={periodo?.maxIntegrantesDefault ?? 3}
               onClose={() => setEditando(null)}
             />
