@@ -36,6 +36,7 @@ import {
   useLotes,
   useResolverIngreso,
 } from '@/features/catalogos/api'
+import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
@@ -55,14 +56,18 @@ import type { CondicionIngreso, EstadoPeriodo, EstudianteHabilitado } from '@/ty
 const TIPOS_XLSX = { xlsx: TIPOS_IMPORTACION.xlsx }
 
 function HabilitarManual({ onClose }: { onClose: () => void }) {
-  const { periodoId } = usePeriodo()
+  const { periodo, periodoId } = usePeriodo()
+  const facultades = useFacultades()
+  const carreras = carrerasDeFacultad(facultades.data, periodo?.facultadId)
+  const [carreraId, setCarreraId] = useState('')
   const [texto, setTexto] = useState('')
   const [estudianteId, setEstudianteId] = useState('')
   const [condicion, setCondicion] = useState<CondicionIngreso>('REGULAR')
   const [requisito, setRequisito] = useState('')
   const estudiantes = useEstudiantes(texto)
   const habilitar = useHabilitar(periodoId)
-  const valido = !!estudianteId && (condicion === 'REGULAR' || requisito.trim().length > 0)
+  const valido =
+    !!carreraId && !!estudianteId && (condicion === 'REGULAR' || requisito.trim().length > 0)
   return (
     <form
       className="space-y-4"
@@ -79,6 +84,19 @@ function HabilitarManual({ onClose }: { onClose: () => void }) {
           )
       }}
     >
+      <Campo etiqueta="Carrera" requerido ayuda="Solo carreras de la facultad del período.">
+        {(p) => (
+          <SelectSimple
+            {...p}
+            value={carreraId}
+            onChange={(v) => {
+              setCarreraId(v)
+              setEstudianteId('')
+            }}
+            opciones={opcionesCarreras(carreras)}
+          />
+        )}
+      </Campo>
       <Campo etiqueta="Buscar estudiante" ayuda="Por nombre, cédula o matrícula.">
         {(p) => <Input {...p} value={texto} onChange={(e) => setTexto(e.target.value)} />}
       </Campo>
@@ -88,7 +106,10 @@ function HabilitarManual({ onClose }: { onClose: () => void }) {
             {...p}
             value={estudianteId}
             onChange={setEstudianteId}
+            disabled={!carreraId}
+            placeholder={carreraId ? 'Seleccione…' : 'Seleccione primero la carrera'}
             opciones={(estudiantes.data ?? [])
+              .filter((e) => e.carrera.id === carreraId)
               .slice(0, 50)
               .map((e) => ({ value: e.id, label: `${nombreCompleto(e)} · ${e.cedula}` }))}
           />
@@ -276,6 +297,9 @@ export default function Habilitados() {
   const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [condicion, setCondicion] = useState('')
   const [situacion, setSituacion] = useState('')
+  const [carreraId, setCarreraId] = useState('')
+  const facultades = useFacultades()
+  const carreras = opcionesCarreras(carrerasDeFacultad(facultades.data, periodo?.facultadId))
   // el backend solo admite resolver ingresos antes de iniciar la titulación
   const puedeResolver = !!periodo && ESTADOS_RESOLUCION.includes(periodo.estado)
 
@@ -390,6 +414,7 @@ export default function Habilitados() {
             columnas={columnas}
             datos={lista.filter(
               (h) =>
+                (!carreraId || h.estudiante.carrera.id === carreraId) &&
                 (!condicion || h.condicionIngreso === condicion) &&
                 (!situacion || h.situacionIngreso === situacion),
             )}
@@ -397,6 +422,14 @@ export default function Habilitados() {
             placeholderBusqueda="Buscar por nombre, cédula, matrícula…"
             filtros={
               <>
+                <SelectSimple
+                  aria-label="Filtrar por carrera"
+                  className="sm:w-56"
+                  value={carreraId}
+                  onChange={setCarreraId}
+                  todos="Todas las carreras"
+                  opciones={carreras}
+                />
                 <SelectSimple
                   aria-label="Filtrar por condición"
                   className="sm:w-48"
@@ -455,7 +488,8 @@ export default function Habilitados() {
             </code>
             . Se genera el correo <code className="text-xs">e{'{cédula}'}@live.uleam.edu.ec</code> y
             la cédula como contraseña temporal. Con SI en ACADEMICO e INGLES el estudiante queda
-            habilitado; con algún NO queda suspendido.{' '}
+            habilitado; con algún NO queda suspendido. Todos los estudiantes del archivo se
+            registran en la carrera elegida, que debe pertenecer a la facultad del período.{' '}
             <Button
               type="button"
               variant="link"
@@ -468,7 +502,8 @@ export default function Habilitados() {
             </Button>
           </>
         }
-        importar={(f) => importar.mutateAsync(f)}
+        carreras={carreras}
+        importar={(archivo, carrera) => importar.mutateAsync({ archivo, carreraId: carrera })}
       />
     </>
   )

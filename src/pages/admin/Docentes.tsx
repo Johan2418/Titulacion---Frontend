@@ -27,6 +27,7 @@ import {
   useReenviarAcceso,
   type DocenteInput,
 } from '@/features/catalogos/api'
+import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
@@ -49,15 +50,18 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
   })
   const [estado, setEstado] = useState<EstadoUsuario>(docente?.estado ?? 'ACTIVO')
   const guardar = useGuardarDocente()
+  const facultades = useFacultades()
   const errores = {
     cedula:
       d.cedula?.trim() && !/^\d{10}$/.test(d.cedula.trim())
         ? 'La cédula debe tener 10 dígitos.'
         : undefined,
     email: !/^\S+@\S+\.\S+$/.test(d.email) ? 'Correo inválido.' : undefined,
+    carrera: !d.carreraId ? 'Seleccione la carrera.' : undefined,
   }
   const [intentado, setIntentado] = useState(false)
-  const valido = !errores.cedula && !errores.email && d.nombres.trim() && d.apellidos.trim()
+  const valido =
+    !errores.cedula && !errores.email && !errores.carrera && d.nombres.trim() && d.apellidos.trim()
   const set = (k: keyof DocenteInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setD({ ...d, [k]: e.target.value })
 
@@ -97,6 +101,17 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
       </Campo>
       <Campo etiqueta="Título académico">
         {(p) => <Input {...p} value={d.tituloAcademico} onChange={set('tituloAcademico')} />}
+      </Campo>
+      <Campo etiqueta="Carrera" requerido error={intentado ? errores.carrera : undefined}>
+        {(p) => (
+          <SelectSimple
+            {...p}
+            value={d.carreraId}
+            onChange={(v) => setD({ ...d, carreraId: v })}
+            placeholder={facultades.isLoading ? 'Cargando carreras…' : 'Seleccione…'}
+            opciones={opcionesCarrerasConFacultad(facultades.data)}
+          />
+        )}
       </Campo>
       <div className="flex items-center gap-2 sm:col-span-2">
         <Checkbox
@@ -147,6 +162,9 @@ export default function Docentes() {
   const guardar = useGuardarDocente()
   const importar = useImportarDocentes()
   const reenviar = useReenviarAcceso()
+  const facultades = useFacultades()
+  const carreras = opcionesCarrerasConFacultad(facultades.data)
+  const [carreraId, setCarreraId] = useState('')
   const [editando, setEditando] = useState<Docente | null | 'nuevo'>(null)
   const [importando, setImportando] = useState(false)
 
@@ -236,9 +254,19 @@ export default function Docentes() {
         {(l) => (
           <DataTable
             columnas={columnas}
-            datos={l}
+            datos={l.filter((d) => !carreraId || d.carrera.id === carreraId)}
             etiqueta="Docentes"
             placeholderBusqueda="Buscar por nombre, cédula…"
+            filtros={
+              <SelectSimple
+                aria-label="Filtrar por carrera"
+                className="sm:w-72"
+                value={carreraId}
+                onChange={setCarreraId}
+                todos="Todas las carreras"
+                opciones={carreras}
+              />
+            }
           />
         )}
       </ConsultaEstado>
@@ -264,9 +292,10 @@ export default function Docentes() {
         descripcion={
           <>
             Archivo Excel (.xlsx), hoja Tutores, con las columnas:{' '}
-            <code className="text-xs">{COLUMNAS_IMPORTACION}</code>; las demás se ignoran. El correo
-            se genera como nombre.apellido@live.uleam.edu.ec, Nombramiento habilita la tutoría y
-            cada docente recibe por correo una clave temporal.{' '}
+            <code className="text-xs">{COLUMNAS_IMPORTACION}</code>; las demás se ignoran. Elija la
+            carrera de los docentes antes de subir el archivo. El correo se genera como
+            nombre.apellido@live.uleam.edu.ec, Nombramiento habilita la tutoría y cada docente
+            recibe por correo una clave temporal.{' '}
             <Button
               type="button"
               variant="link"
@@ -279,7 +308,8 @@ export default function Docentes() {
             </Button>
           </>
         }
-        importar={(f) => importar.mutateAsync(f)}
+        carreras={carreras}
+        importar={(archivo, carrera) => importar.mutateAsync({ archivo, carreraId: carrera })}
       />
     </>
   )
