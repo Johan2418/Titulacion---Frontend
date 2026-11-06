@@ -77,10 +77,10 @@ export type DocenteInput = Pick<
 > & {
   cedula?: string
   tituloAcademico?: string
-  departamento?: string
+  carreraId?: string
 }
 
-/** Cédula, título y departamento son opcionales: vacío al editar se guarda como null. */
+/** Cédula y título son opcionales: vacío al editar se guarda como null. */
 const opcional = (v?: string) => (v === undefined ? undefined : v.trim() || null)
 
 /**
@@ -103,7 +103,7 @@ export const useGuardarDocente = () =>
                 apellidos: b.apellidos?.trim(),
                 cedula: opcional(b.cedula),
                 tituloAcademico: opcional(b.tituloAcademico),
-                departamento: opcional(b.departamento),
+                carreraId: b.carreraId || undefined,
                 habilitadoTutoria: b.habilitadoTutoria,
                 estado: b.estado,
               }),
@@ -114,7 +114,7 @@ export const useGuardarDocente = () =>
               apellidos: b.apellidos?.trim(),
               cedula: opcional(b.cedula) ?? undefined,
               tituloAcademico: opcional(b.tituloAcademico) ?? undefined,
-              departamento: opcional(b.departamento) ?? undefined,
+              carreraId: b.carreraId,
               habilitadoTutoria: b.habilitadoTutoria ?? false,
             }),
       ),

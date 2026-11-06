@@ -2,6 +2,7 @@
 export const K = {
   periodos: ['periodos'] as const,
   periodoActual: ['periodos', 'actual'] as const,
+  facultades: ['facultades'] as const,
   resumen: (pid: string) => ['periodos', pid, 'resumen'] as const,
   lineas: ['lineas'] as const,
   docentes: ['docentes'] as const,

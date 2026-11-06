@@ -44,7 +44,7 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
     apellidos: docente?.apellidos ?? '',
     email: docente?.email ?? '',
     tituloAcademico: docente?.tituloAcademico ?? '',
-    departamento: docente?.departamento ?? '',
+    carreraId: docente?.carrera.id ?? '',
     habilitadoTutoria: docente?.habilitadoTutoria ?? true,
   })
   const [estado, setEstado] = useState<EstadoUsuario>(docente?.estado ?? 'ACTIVO')
@@ -97,9 +97,6 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
       </Campo>
       <Campo etiqueta="Título académico">
         {(p) => <Input {...p} value={d.tituloAcademico} onChange={set('tituloAcademico')} />}
-      </Campo>
-      <Campo etiqueta="Departamento">
-        {(p) => <Input {...p} value={d.departamento} onChange={set('departamento')} />}
       </Campo>
       <div className="flex items-center gap-2 sm:col-span-2">
         <Checkbox
@@ -166,7 +163,7 @@ export default function Docentes() {
       ),
     },
     { header: 'Título', accessorFn: (d) => vacio(d.tituloAcademico) },
-    { header: 'Departamento', accessorFn: (d) => vacio(d.departamento) },
+    { header: 'Carrera', accessorFn: (d) => d.carrera.nombre },
     {
       header: 'Tutoría',
       accessorKey: 'habilitadoTutoria',

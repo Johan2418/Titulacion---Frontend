@@ -288,7 +288,7 @@ export default function Habilitados() {
         <span>
           <span className="block font-medium">{nombreCompleto(row.original.estudiante)}</span>
           <span className="text-xs text-muted-foreground">
-            {row.original.estudiante.cedula} · {row.original.estudiante.carrera}
+            {row.original.estudiante.cedula} · {row.original.estudiante.carrera.nombre}
           </span>
         </span>
       ),
