@@ -99,7 +99,7 @@ export interface EstudianteResumen extends PersonaResumen {
   matricula: string
 }
 export interface DocenteResumen extends PersonaResumen {
-  cedula: string
+  cedula: string | null
 }
 export interface TemaResumen {
   id: UUID
@@ -152,7 +152,7 @@ export interface Estudiante {
 export interface Docente {
   id: UUID
   usuarioId: UUID
-  cedula: string
+  cedula: string | null
   tituloAcademico?: string | null
   departamento?: string | null
   habilitadoTutoria: boolean
@@ -196,6 +196,8 @@ export interface LoteImportacion {
   filasOk: number
   filasError: number
   errores?: { fila: number; mensaje: string }[] | null
+  /** Avisos no bloqueantes de la vista previa (por ejemplo, Tipo vacío en docentes). */
+  advertencias?: { fila: number; mensaje: string }[]
   fechaInicio: ISODate
   fechaFin?: ISODate | null
   /** La vista previa venció sin completarse; se conserva en el historial. */

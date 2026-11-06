@@ -73,11 +73,15 @@ export const useDocentes = (filtros: { habilitadoTutoria?: boolean } = {}) =>
 
 export type DocenteInput = Pick<
   Docente,
-  'cedula' | 'nombres' | 'apellidos' | 'email' | 'habilitadoTutoria'
+  'nombres' | 'apellidos' | 'email' | 'habilitadoTutoria'
 > & {
+  cedula?: string
   tituloAcademico?: string
   departamento?: string
 }
+
+/** Cédula, título y departamento son opcionales: vacío al editar se guarda como null. */
+const opcional = (v?: string) => (v === undefined ? undefined : v.trim() || null)
 
 /**
  * Alta atómica (cuenta DOCENTE + clave temporal por correo + perfil en una sola llamada) o
@@ -97,9 +101,9 @@ export const useGuardarDocente = () =>
               definidos({
                 nombres: b.nombres?.trim(),
                 apellidos: b.apellidos?.trim(),
-                cedula: b.cedula?.trim(),
-                tituloAcademico: b.tituloAcademico?.trim() || undefined,
-                departamento: b.departamento?.trim() || undefined,
+                cedula: opcional(b.cedula),
+                tituloAcademico: opcional(b.tituloAcademico),
+                departamento: opcional(b.departamento),
                 habilitadoTutoria: b.habilitadoTutoria,
                 estado: b.estado,
               }),
@@ -108,9 +112,9 @@ export const useGuardarDocente = () =>
               email: email?.trim(),
               nombres: b.nombres?.trim(),
               apellidos: b.apellidos?.trim(),
-              cedula: b.cedula?.trim(),
-              tituloAcademico: b.tituloAcademico?.trim() ?? '',
-              departamento: b.departamento?.trim() ?? '',
+              cedula: opcional(b.cedula) ?? undefined,
+              tituloAcademico: opcional(b.tituloAcademico) ?? undefined,
+              departamento: opcional(b.departamento) ?? undefined,
               habilitadoTutoria: b.habilitadoTutoria ?? false,
             }),
       ),
@@ -262,6 +266,7 @@ export const useResolverIngreso = () => {
 interface PreparacionB {
   id: string
   estado: EstadoPreparacionB
+  advertencias?: { fila: number; mensaje: string }[]
 }
 
 const rutaPreparaciones = (tipo: LoteImportacion['tipo'], periodoId?: string) =>
@@ -290,7 +295,8 @@ async function validarYConfirmar(
     prep = await api.get<PreparacionB>(`${base}/${id}`)
   }
   if (prep.estado === 'LISTA') await api.post(`${base}/${id}/confirmar`, {})
-  return buscarEnHistorial(tipo, id, periodoId)
+  const lote = await buscarEnHistorial(tipo, id, periodoId)
+  return prep.advertencias?.length ? { ...lote, advertencias: prep.advertencias } : lote
 }
 
 /** Devuelve la preparación desde el historial (incluye contadores y errores por fila). */

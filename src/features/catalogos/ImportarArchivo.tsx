@@ -46,6 +46,29 @@ function ErroresImportacion({ errores }: { errores: { fila: number; mensaje: str
   )
 }
 
+/** Avisos que no impidieron la importación. */
+function AdvertenciasImportacion({
+  advertencias,
+}: {
+  advertencias: { fila: number; mensaje: string }[]
+}) {
+  return (
+    <div role="status" className="rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+      <p className="font-medium">
+        {advertencias.length} {advertencias.length === 1 ? 'advertencia' : 'advertencias'} (no
+        impiden la importación):
+      </p>
+      <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto text-xs">
+        {advertencias.slice(0, MAX_ERRORES_VISIBLES).map((a, i) => (
+          <li key={i}>
+            Fila {a.fila}: {a.mensaje}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** Importación masiva: se encola y se procesa en segundo plano (RNF-10). */
 export function ImportarArchivo({
   abierto,
@@ -105,6 +128,9 @@ export function ImportarArchivo({
         />
         {resultado?.estado === 'FALLIDO' && !!resultado.errores?.length && (
           <ErroresImportacion errores={resultado.errores} />
+        )}
+        {resultado?.estado !== 'FALLIDO' && !!resultado?.advertencias?.length && (
+          <AdvertenciasImportacion advertencias={resultado.advertencias} />
         )}
         <DialogFooter>
           <Button

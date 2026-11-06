@@ -46,7 +46,7 @@ export interface PersonaB {
 export interface DocenteB {
   id: UUID
   usuario: Usuario
-  cedula: string
+  cedula: string | null
   tituloAcademico: string | null
   departamento: string | null
   habilitadoTutoria: boolean
@@ -218,7 +218,7 @@ export interface CargaActualB {
 
 /** GET /periodos/:pid/carga-tutorial: carga y límite efectivo de cada docente. */
 export interface CargaPeriodoB extends CargaActualB {
-  docente: PersonaB & { cedula: string; habilitadoTutoria: boolean; estado: string }
+  docente: PersonaB & { cedula: string | null; habilitadoTutoria: boolean; estado: string }
 }
 
 export interface PlantillaB {

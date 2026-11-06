@@ -34,8 +34,8 @@ import { nombreCompleto } from '@/lib/utils'
 import type { Docente, EstadoUsuario } from '@/types/dominio'
 
 const TIPOS_XLSX = { xlsx: TIPOS_IMPORTACION.xlsx }
-const COLUMNAS_IMPORTACION =
-  'cedula, nombres, apellidos, email, titulo, departamento, habilitado_tutoria'
+const COLUMNAS_IMPORTACION = 'DOCENTES (Apellidos Nombres), Tipo (Nombramiento/Contratos)'
+const vacio = (v?: string | null) => v || '—'
 
 function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: () => void }) {
   const [d, setD] = useState<DocenteInput>({
@@ -50,7 +50,10 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
   const [estado, setEstado] = useState<EstadoUsuario>(docente?.estado ?? 'ACTIVO')
   const guardar = useGuardarDocente()
   const errores = {
-    cedula: !/^\d{10}$/.test(d.cedula) ? 'La cédula debe tener 10 dígitos.' : undefined,
+    cedula:
+      d.cedula?.trim() && !/^\d{10}$/.test(d.cedula.trim())
+        ? 'La cédula debe tener 10 dígitos.'
+        : undefined,
     email: !/^\S+@\S+\.\S+$/.test(d.email) ? 'Correo inválido.' : undefined,
   }
   const [intentado, setIntentado] = useState(false)
@@ -69,7 +72,7 @@ function FormDocente({ docente, onClose }: { docente: Docente | null; onClose: (
         guardar.mutate(docente ? { id: docente.id, ...d, estado } : d, { onSuccess: onClose })
       }}
     >
-      <Campo etiqueta="Cédula" requerido error={intentado ? errores.cedula : undefined}>
+      <Campo etiqueta="Cédula" error={intentado ? errores.cedula : undefined}>
         {(p) => <Input {...p} value={d.cedula} onChange={set('cedula')} inputMode="numeric" />}
       </Campo>
       <Campo
@@ -151,7 +154,7 @@ export default function Docentes() {
   const [importando, setImportando] = useState(false)
 
   const columnas: ColumnDef<Docente>[] = [
-    { header: 'Cédula', accessorKey: 'cedula' },
+    { header: 'Cédula', accessorFn: (d) => vacio(d.cedula) },
     {
       header: 'Docente',
       accessorFn: (d) => nombreCompleto(d),
@@ -162,8 +165,8 @@ export default function Docentes() {
         </span>
       ),
     },
-    { header: 'Título', accessorKey: 'tituloAcademico' },
-    { header: 'Departamento', accessorKey: 'departamento' },
+    { header: 'Título', accessorFn: (d) => vacio(d.tituloAcademico) },
+    { header: 'Departamento', accessorFn: (d) => vacio(d.departamento) },
     {
       header: 'Tutoría',
       accessorKey: 'habilitadoTutoria',
@@ -263,10 +266,10 @@ export default function Docentes() {
         tipos={TIPOS_XLSX}
         descripcion={
           <>
-            Archivo Excel (.xlsx) con encabezados:{' '}
-            <code className="text-xs">{COLUMNAS_IMPORTACION}</code>. El correo debe ser
-            @uleam.edu.ec o @live.uleam.edu.ec, habilitado_tutoria acepta SI o NO y la cédula será
-            la contraseña temporal.{' '}
+            Archivo Excel (.xlsx), hoja Tutores, con las columnas:{' '}
+            <code className="text-xs">{COLUMNAS_IMPORTACION}</code>; las demás se ignoran. El correo
+            se genera como nombre.apellido@live.uleam.edu.ec, Nombramiento habilita la tutoría y
+            cada docente recibe por correo una clave temporal.{' '}
             <Button
               type="button"
               variant="link"
