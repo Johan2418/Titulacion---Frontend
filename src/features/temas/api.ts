@@ -15,6 +15,7 @@ import type { DocenteResumen, EstadoTema, Postulacion, Tema } from '@/types/domi
 
 export interface FiltrosTema {
   periodoId?: string
+  carreraId?: string
   lineaId?: string
   docenteId?: string
   estado?: EstadoTema | ''
@@ -24,6 +25,7 @@ export interface FiltrosTema {
 
 export type TemaInput = {
   periodoId: string
+  carreraId: string
   lineaId: string
   docenteProponenteId: string
   titulo: string
@@ -35,6 +37,7 @@ export type TemaInput = {
 export const listarTemas = async (periodoId: string, f: Omit<FiltrosTema, 'periodoId'> = {}) =>
   (
     await api.todas<TemaB>(`/periodos/${periodoId}/temas`, {
+      carreraId: f.carreraId,
       lineaId: f.lineaId,
       docenteProponenteId: f.docenteId,
       estado: f.estado,

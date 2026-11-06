@@ -11,12 +11,15 @@ describe('temaSchema (CHECK min/max integrantes)', () => {
   const tema = {
     titulo: 'Tema válido',
     descripcion: 'Una descripción suficiente',
+    carreraId: 'c',
     lineaId: 'l',
     docenteProponenteId: 'd',
     minIntegrantes: 1,
     maxIntegrantes: 2,
   }
   it('acepta un rango válido', () => expect(temaSchema.safeParse(tema).success).toBe(true))
+  it('exige la carrera', () =>
+    expect(temaSchema.safeParse({ ...tema, carreraId: '' }).success).toBe(false))
   it('rechaza min < 1', () =>
     expect(temaSchema.safeParse({ ...tema, minIntegrantes: 0 }).success).toBe(false))
   it('rechaza max < min', () => {
