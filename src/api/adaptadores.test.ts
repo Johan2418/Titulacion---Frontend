@@ -82,6 +82,21 @@ describe('auditoria', () => {
     expect(a.valoresNuevos).toEqual({ max_integrantes: 3 })
     expect(a.ipOrigen).toBe('10.0.0.5')
   })
+
+  it('deja el usuario nulo en acciones automáticas del sistema', () => {
+    const b = clavesACamel<Parameters<typeof auditoria>[0]>({
+      id: '10',
+      actor: null,
+      accion: 'CERRAR_POSTULACION',
+      entidad_tipo: 'periodo_titulacion',
+      entidad_id: 'p1',
+      valores_anteriores: { estado: 'POSTULACION_ABIERTA' },
+      valores_nuevos: { estado: 'POSTULACION_CERRADA', automatico: true },
+      ip_origen: null,
+      fecha_hora: '2026-10-02T10:00:00Z',
+    })
+    expect(auditoria(b).usuario).toBeNull()
+  })
 })
 
 describe('postulacion', () => {

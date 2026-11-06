@@ -578,7 +578,8 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
 // ── Auditoría ──
 export interface AuditoriaB {
   id: string
-  actor: PersonaB & { rol: Rol }
+  /** Nulo en acciones automáticas del sistema. */
+  actor: (PersonaB & { rol: Rol }) | null
   accion: string
   entidadTipo: string
   entidadId: UUID
@@ -594,7 +595,7 @@ const valoresOriginales = (v: Record<string, unknown> | null) =>
 
 export const auditoria = (a: AuditoriaB): Auditoria => ({
   id: String(a.id),
-  usuario: { ...persona(a.actor), rol: a.actor.rol },
+  usuario: a.actor ? { ...persona(a.actor), rol: a.actor.rol } : null,
   accion: a.accion,
   entidadTipo: a.entidadTipo,
   entidadId: a.entidadId,

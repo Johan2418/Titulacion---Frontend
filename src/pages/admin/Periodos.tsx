@@ -30,7 +30,10 @@ import { formatFecha, inputLocalToIso, isoToInputLocal } from '@/lib/fechas'
 import { ESTADO_PERIODO } from '@/lib/estados'
 import type { EstadoPeriodo, PeriodoTitulacion } from '@/types/dominio'
 
-/** Transiciones permitidas del período (el backend las valida). */
+/**
+ * Transiciones manuales del período (el backend las valida). Archivar se ofrece aparte en
+ * cualquier estado no archivado. La postulación también se abre y se cierra sola por fechas.
+ */
 const SIGUIENTE: Partial<Record<EstadoPeriodo, { estado: EstadoPeriodo; label: string }[]>> = {
   BORRADOR: [{ estado: 'POSTULACION_ABIERTA', label: 'Abrir postulación' }],
   POSTULACION_ABIERTA: [{ estado: 'POSTULACION_CERRADA', label: 'Cerrar postulación' }],
@@ -38,7 +41,6 @@ const SIGUIENTE: Partial<Record<EstadoPeriodo, { estado: EstadoPeriodo; label: s
     { estado: 'POSTULACION_ABIERTA', label: 'Reabrir postulación' },
     { estado: 'EN_CURSO', label: 'Iniciar titulación' },
   ],
-  EN_CURSO: [{ estado: 'ARCHIVADO', label: 'Archivar' }],
 }
 
 function FormPeriodo({
@@ -167,7 +169,7 @@ function ArchivarPeriodo({ periodo }: { periodo: PeriodoTitulacion }) {
         </Button>
       }
       titulo={`Archivar: ${periodo.codigo}`}
-      descripcion="El período pasará a «Archivado» y ya no admitirá cambios. Se conserva todo su historial."
+      descripcion={`El período pasará de «${ESTADO_PERIODO[periodo.estado].label}» a «${ESTADO_PERIODO.ARCHIVADO.label}» y ya no admitirá cambios. Se conserva todo su historial.`}
       confirmar="Archivar"
       destructivo
       onConfirm={async () => {
@@ -268,7 +270,6 @@ export default function Periodos() {
         return (
           <div className="flex flex-wrap justify-end gap-1">
             {(SIGUIENTE[p.estado] ?? []).map((s) => {
-              if (s.estado === 'ARCHIVADO') return <ArchivarPeriodo key={s.estado} periodo={p} />
               if (s.estado === 'EN_CURSO') return <IniciarTitulacion key={s.estado} periodo={p} />
               return (
                 <ConfirmDialog
@@ -284,6 +285,7 @@ export default function Periodos() {
                 />
               )
             })}
+            {p.estado !== 'ARCHIVADO' && <ArchivarPeriodo periodo={p} />}
             {p.estado !== 'ARCHIVADO' && (
               <Button
                 variant="ghost"
@@ -304,7 +306,7 @@ export default function Periodos() {
     <>
       <PageHeader
         titulo="Períodos de titulación"
-        descripcion="Fechas de postulación, inicio de titulación y estado de cada período."
+        descripcion="Fechas de postulación, inicio de titulación y estado de cada período. La postulación se abre y se cierra automáticamente según sus fechas; iniciar la titulación y archivar son acciones manuales."
         acciones={
           <Button onClick={() => setEditando('nuevo')}>
             <PlusIcon /> Nuevo período
