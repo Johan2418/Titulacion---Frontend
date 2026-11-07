@@ -91,13 +91,13 @@ export function VistaPreviaImportacion({
                 <TableCell>{f.titulo}</TableCell>
                 <TableCell className="space-y-1">
                   <Badge tono={ESTADO_FILA[f.estado].tono}>{ESTADO_FILA[f.estado].label}</Badge>
-                  {f.errores.map((m) => (
-                    <p key={m} className="text-xs text-destructive">
+                  {f.errores.map((m, i) => (
+                    <p key={`e${i}`} className="text-xs text-destructive">
                       {m}
                     </p>
                   ))}
-                  {f.advertencias.map((m) => (
-                    <p key={m} className="text-xs text-muted-foreground">
+                  {f.advertencias.map((m, i) => (
+                    <p key={`a${i}`} className="text-xs text-muted-foreground">
                       {m}
                     </p>
                   ))}
@@ -111,7 +111,9 @@ export function VistaPreviaImportacion({
         <Button
           type="button"
           variant="outline"
-          disabled={procesando || !resolucionesCompletas(preview.filas, seleccion)}
+          disabled={
+            procesando || preview.conErrores > 0 || !resolucionesCompletas(preview.filas, seleccion)
+          }
           onClick={onAplicar}
         >
           <UserCheckIcon /> Aplicar docentes

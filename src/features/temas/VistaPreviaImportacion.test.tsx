@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { FilaImportacionTema, ImportacionTemas } from './importacion'
 import { VistaPreviaImportacion } from './VistaPreviaImportacion'
@@ -9,6 +10,9 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.releasePointerCapture ??= () => {}
+  Element.prototype.scrollIntoView ??= () => {}
 })
 
 const almeida = { id: 'd1', nombres: 'Edison', apellidos: 'Almeida' }
@@ -121,5 +125,41 @@ describe('VistaPreviaImportacion', () => {
     expect(screen.getByText('Tema repetido en el archivo (fila 10); se omitirá.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirmar importación/ }))
     expect(onConfirmar).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['ofrece los candidatos de la fila cuando existen', [{ id: 'd3', nombres: 'Ana', apellidos: 'Ruiz' }], 'Ana Ruiz', 'Juan Pérez Loor'],
+    ['ofrece los docentes activos de la carrera cuando no hay candidatos', [], 'Juan Pérez Loor', 'Ana Ruiz'],
+  ])('%s', async (_n, candidatos, presente, ausente) => {
+    render(
+      <VistaPreviaImportacion
+        {...base}
+        seleccion={{}}
+        preview={preview(
+          [fila({ docenteExcel: 'PÉREZ', docente: null, estado: 'PENDIENTE_DOCENTE', candidatos })],
+          false,
+        )}
+      />,
+    )
+    await userEvent.click(screen.getByRole('combobox', { name: 'Docente para «PÉREZ»' }))
+    expect(await screen.findByRole('option', { name: presente })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: ausente })).toBeNull()
+  })
+
+  it('bloquea aplicar docentes mientras haya filas con errores', () => {
+    render(
+      <VistaPreviaImportacion
+        {...base}
+        seleccion={{ PÉREZ: 'd2' }}
+        preview={preview(
+          [
+            fila({ docenteExcel: 'PÉREZ', docente: null, estado: 'PENDIENTE_DOCENTE' }),
+            fila({ fila: 12, estado: 'ERROR', errores: ['Falta el título.'] }),
+          ],
+          false,
+        )}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Aplicar docentes/ })).toBeDisabled()
   })
 })

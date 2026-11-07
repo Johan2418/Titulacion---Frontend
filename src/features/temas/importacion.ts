@@ -112,7 +112,7 @@ export const useValidarImportacionTemas = () =>
       api.post<ImportacionTemas>(`${RUTA}/validar`, formularioImportacionTemas(p)),
   })
 
-/** The body is an array: object keys would be converted to snake_case by the HTTP client. */
+/** The HTTP client snake-cases the nested keys, so the wire body is `{ resoluciones: [{ nombre_excel, docente_id }] }`. */
 export const useResolverDocentesImportacion = () =>
   useMutacion({
     fn: ({
