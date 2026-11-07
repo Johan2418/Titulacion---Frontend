@@ -97,8 +97,8 @@ export function verificarPostulacion(c: ContextoPostulacion): Verificacion[] {
   }
   v.push({
     id: 'rango',
-    ok: n >= c.tema.minIntegrantes && n <= c.tema.maxIntegrantes,
-    mensaje: `El número de integrantes (${n}) está entre ${c.tema.minIntegrantes} y ${c.tema.maxIntegrantes}.`,
+    ok: n >= c.tema.minIntegrantes && n <= (c.tema.maxIntegrantes ?? c.tema.minIntegrantes),
+    mensaje: `El número de integrantes (${n}) está entre ${c.tema.minIntegrantes} y ${c.tema.maxIntegrantes ?? c.tema.minIntegrantes}.`,
     regla: 'RN-05',
   })
   return v

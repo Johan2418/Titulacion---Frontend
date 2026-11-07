@@ -7,25 +7,22 @@ import { inputLocalToIso, isoToInputLocal } from './fechas'
 import { mensajeError } from './errores'
 import { ApiError } from '@/api/client'
 
-describe('temaSchema (CHECK min/max integrantes)', () => {
+describe('temaSchema (tipo de tema)', () => {
   const tema = {
     titulo: 'Tema válido',
     descripcion: 'Una descripción suficiente',
     carreraId: 'c',
     lineaId: 'l',
     docenteProponenteId: 'd',
-    minIntegrantes: 1,
-    maxIntegrantes: 2,
+    tipo: 'GRUPO',
   }
-  it('acepta un rango válido', () => expect(temaSchema.safeParse(tema).success).toBe(true))
+  it('acepta un tema con tipo', () => expect(temaSchema.safeParse(tema).success).toBe(true))
   it('exige la carrera', () =>
     expect(temaSchema.safeParse({ ...tema, carreraId: '' }).success).toBe(false))
-  it('rechaza min < 1', () =>
-    expect(temaSchema.safeParse({ ...tema, minIntegrantes: 0 }).success).toBe(false))
-  it('rechaza max < min', () => {
-    const r = temaSchema.safeParse({ ...tema, minIntegrantes: 3, maxIntegrantes: 2 })
+  it('exige un tipo conocido', () => {
+    const r = temaSchema.safeParse({ ...tema, tipo: 'TRIO' })
     expect(r.success).toBe(false)
-    expect(r.error?.issues[0].path).toEqual(['maxIntegrantes'])
+    expect(r.error?.issues[0].path).toEqual(['tipo'])
   })
 })
 

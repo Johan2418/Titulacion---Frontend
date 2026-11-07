@@ -16,7 +16,7 @@ import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { AccionesTema } from '@/features/temas/AccionesTema'
 import { useTemas } from '@/features/temas/api'
 import { FormTema } from '@/features/temas/FormTema'
-import { ESTADO_TEMA, opciones } from '@/lib/estados'
+import { ESTADO_TEMA, opciones, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { EstadoTema, Tema } from '@/types/dominio'
 
@@ -45,11 +45,7 @@ export default function Temas() {
     { header: 'Carrera', accessorFn: (t) => t.carrera.nombre },
     { header: 'Línea', accessorFn: (t) => t.linea.nombre },
     { header: 'Proponente', accessorFn: (t) => nombreCompleto(t.docenteProponente) },
-    {
-      header: 'Integrantes',
-      accessorFn: (t) => `${t.minIntegrantes}–${t.maxIntegrantes}`,
-      enableSorting: false,
-    },
+    { header: 'Tipo', accessorFn: (t) => TIPO_TEMA[t.tipo].label },
     { header: 'Postul. abiertas', accessorKey: 'postulacionesAbiertas' },
     {
       header: 'Estado',
@@ -138,9 +134,6 @@ export default function Temas() {
           {editando !== null && (
             <FormTema
               tema={editando === 'nuevo' ? null : editando}
-              periodoId={periodoId}
-              facultadId={periodo?.facultadId}
-              maxDefault={periodo?.maxIntegrantesDefault ?? 3}
               onClose={() => setEditando(null)}
             />
           )}

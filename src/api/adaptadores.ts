@@ -78,16 +78,17 @@ export interface HabilitadoB extends Omit<
 
 export interface TemaB {
   id: UUID
-  periodoId: UUID
   carreraId: UUID
   carrera: CarreraResumen
   linea: { id: UUID; codigo: string; nombre: string }
   docenteProponente: PersonaB
   titulo: string
   descripcion: string
+  tipo: Tema['tipo']
   minIntegrantes: number
-  maxIntegrantes: number
+  maxIntegrantes: number | null
   estado: Tema['estado']
+  loteImportacionId: UUID | null
   creadoEn: ISODate
   disponible: boolean
   postulacionesAbiertas: number
@@ -352,12 +353,12 @@ export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
 
 export const tema = (t: TemaB): Tema => ({
   id: t.id,
-  periodoId: t.periodoId,
   carrera: t.carrera,
   linea: { id: t.linea.id, nombre: t.linea.nombre },
   docenteProponente: docenteResumen(t.docenteProponente),
   titulo: t.titulo,
   descripcion: t.descripcion,
+  tipo: t.tipo,
   minIntegrantes: t.minIntegrantes,
   maxIntegrantes: t.maxIntegrantes,
   estado: t.estado,
