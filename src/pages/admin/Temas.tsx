@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PencilIcon, PlusIcon } from 'lucide-react'
+import { PencilIcon, PlusIcon, UploadIcon } from 'lucide-react'
 import { DataTable } from '@/components/DataTable'
 import { ConsultaEstado } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -20,6 +20,7 @@ import {
   type FiltrosBanco,
 } from '@/features/temas/FiltrosBancoTemas'
 import { FormTema } from '@/features/temas/FormTema'
+import { ImportarTemas } from '@/features/temas/ImportarTemas'
 import { ESTADO_TEMA, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { Tema } from '@/types/dominio'
@@ -31,6 +32,7 @@ export default function Temas() {
   const facultades = useFacultades()
   const query = useTemas(filtrosTemaDesdeBanco(filtros))
   const [editando, setEditando] = useState<Tema | null | 'nuevo'>(null)
+  const [importando, setImportando] = useState(false)
 
   const columnas: ColumnDef<Tema>[] = [
     {
@@ -79,9 +81,14 @@ export default function Temas() {
         titulo="Banco de temas"
         descripcion="Temas por carrera, disponibles en todos los períodos mientras no tengan una asignación vigente."
         acciones={
-          <Button onClick={() => setEditando('nuevo')}>
-            <PlusIcon /> Registrar tema
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setImportando(true)}>
+              <UploadIcon /> Importar temas
+            </Button>
+            <Button onClick={() => setEditando('nuevo')}>
+              <PlusIcon /> Registrar tema
+            </Button>
+          </>
         }
       />
       <div className="mb-4 empty:hidden">
@@ -118,6 +125,7 @@ export default function Temas() {
           )}
         </DialogContent>
       </Dialog>
+      <ImportarTemas abierto={importando} onClose={() => setImportando(false)} />
     </>
   )
 }
