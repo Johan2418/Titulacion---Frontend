@@ -3,6 +3,7 @@ import type { Grupo } from '@/types/dominio'
 import {
   esRepresentante,
   moverElemento,
+  opcionesTemas,
   ordenarSugeridos,
   verificarPostulacion,
   type ContextoPostulacion,
@@ -143,5 +144,22 @@ describe('utilidades', () => {
   it('moverElemento reordena y respeta los límites', () => {
     expect(moverElemento(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b'])
     expect(moverElemento(['a', 'b'], 0, -1)).toEqual(['a', 'b'])
+  })
+})
+
+describe('opcionesTemas', () => {
+  it('builds distinct topic options from the period applications, sorted by title', () => {
+    const p = (id: string, titulo: string) => ({ tema: { id, titulo } })
+    expect(
+      opcionesTemas([
+        p('t2', 'Visión artificial'),
+        p('t1', 'Aprendizaje automático'),
+        p('t2', 'Visión artificial'),
+      ]),
+    ).toEqual([
+      { value: 't1', label: 'Aprendizaje automático' },
+      { value: 't2', label: 'Visión artificial' },
+    ])
+    expect(opcionesTemas(undefined)).toEqual([])
   })
 })
