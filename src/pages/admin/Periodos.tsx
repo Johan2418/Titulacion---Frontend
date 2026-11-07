@@ -28,6 +28,7 @@ import {
   usePeriodos,
   useResumenPeriodo,
 } from '@/features/periodos/api'
+import { facultadBloqueada } from '@/features/periodos/reglas'
 import { periodoSchema, type PeriodoForm } from '@/features/periodos/schemas'
 import { formatFecha, inputLocalToIso, isoToInputLocal } from '@/lib/fechas'
 import { ESTADO_PERIODO } from '@/lib/estados'
@@ -57,13 +58,10 @@ function FormPeriodo({
   const actualizar = useActualizarPeriodo()
   const facultades = useFacultades()
   const enBorrador = !periodo || periodo.estado === 'BORRADOR'
-  // la facultad no puede cambiar si el período ya tiene temas o estudiantes habilitados
+  // la facultad no puede cambiar si el período ya tiene estudiantes habilitados
   const resumen = useResumenPeriodo(periodo && enBorrador ? periodo.id : undefined)
-  const conDatos =
-    !!resumen.data &&
-    (resumen.data.estudiantesHabilitados > 0 ||
-      Object.values(resumen.data.temasPorEstado).some((n) => n > 0))
-  const facultadBloqueada = !enBorrador || conDatos
+  const conHabilitados = (resumen.data?.estudiantesHabilitados ?? 0) > 0
+  const bloqueada = facultadBloqueada(enBorrador, resumen.data?.estudiantesHabilitados)
   const { register, handleSubmit, formState, control } = useForm<PeriodoForm>({
     resolver: zodResolver(periodoSchema) as never,
     defaultValues: periodo
@@ -127,8 +125,8 @@ function FormPeriodo({
         ayuda={
           !enBorrador
             ? 'La facultad solo puede cambiarse mientras el período está en borrador.'
-            : conDatos
-              ? 'La facultad no puede cambiarse porque el período ya tiene temas o estudiantes habilitados.'
+            : conHabilitados
+              ? 'La facultad no puede cambiarse porque el período ya tiene estudiantes habilitados.'
               : 'Los temas, docentes y estudiantes del período se gestionan por carreras de esta facultad.'
         }
       >
@@ -142,7 +140,7 @@ function FormPeriodo({
                   {...p}
                   value={field.value}
                   onChange={field.onChange}
-                  disabled={facultadBloqueada}
+                  disabled={bloqueada}
                   placeholder={facultades.isLoading ? 'Cargando facultades…' : 'Seleccione…'}
                   opciones={opcionesFacultades(facultades.data)}
                 />
