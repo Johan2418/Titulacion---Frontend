@@ -40,7 +40,12 @@ describe('FormularioImportacionTemas', () => {
     render(
       <FormularioImportacionTemas
         {...props}
-        valores={{ carreraId: 'c', lineaId: 'l', tipo: 'GRUPO', archivo: new File(['x'], 'temas.xlsx') }}
+        valores={{
+          carreraId: 'c',
+          lineaId: 'l',
+          tipo: 'GRUPO',
+          archivo: new File(['x'], 'temas.xlsx'),
+        }}
         onValidar={onValidar}
         validando={false}
       />,

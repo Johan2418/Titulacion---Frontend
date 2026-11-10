@@ -126,8 +126,7 @@ export const useResolverDocentesImportacion = () =>
 
 export const useConfirmarImportacionTemas = () =>
   useMutacion({
-    fn: (id: string) =>
-      api.post<ConfirmacionImportacionTemas>(`${RUTA}/${id}/confirmar`, {}),
+    fn: (id: string) => api.post<ConfirmacionImportacionTemas>(`${RUTA}/${id}/confirmar`, {}),
     invalida: [K.temas],
     exito: (r) =>
       `Importación completada: ${r.creados} tema(s) creados${

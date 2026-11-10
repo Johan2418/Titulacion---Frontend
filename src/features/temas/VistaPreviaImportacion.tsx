@@ -10,13 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  resolucionesCompletas,
-  type EstadoFilaTema,
-  type ImportacionTemas,
-} from './importacion'
+import { resolucionesCompletas, type EstadoFilaTema, type ImportacionTemas } from './importacion'
 
-const ESTADO_FILA: Record<EstadoFilaTema, { label: string; tono: 'success' | 'warning' | 'muted' | 'danger' }> = {
+const ESTADO_FILA: Record<
+  EstadoFilaTema,
+  { label: string; tono: 'success' | 'warning' | 'muted' | 'danger' }
+> = {
   LISTA: { label: 'Lista', tono: 'success' },
   PENDIENTE_DOCENTE: { label: 'Docente pendiente', tono: 'warning' },
   DUPLICADA: { label: 'Duplicada (se omite)', tono: 'muted' },
@@ -118,7 +117,11 @@ export function VistaPreviaImportacion({
         >
           <UserCheckIcon /> Aplicar docentes
         </Button>
-        <Button type="button" disabled={procesando || !preview.puedeConfirmar} onClick={onConfirmar}>
+        <Button
+          type="button"
+          disabled={procesando || !preview.puedeConfirmar}
+          onClick={onConfirmar}
+        >
           <CheckIcon /> Confirmar importación
         </Button>
       </div>

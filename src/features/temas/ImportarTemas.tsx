@@ -30,7 +30,9 @@ export function ImportarTemas({ abierto, onClose }: { abierto: boolean; onClose:
   const facultades = useFacultades()
   const lineas = useLineas()
   const docentes = useDocentes()
-  const [valores, setValores] = useState<ParametrosImportacionTemas>(PARAMETROS_IMPORTACION_INICIALES)
+  const [valores, setValores] = useState<ParametrosImportacionTemas>(
+    PARAMETROS_IMPORTACION_INICIALES,
+  )
   const [preview, setPreview] = useState<ImportacionTemas | null>(null)
   const [seleccion, setSeleccion] = useState<Record<string, string>>({})
   const validar = useValidarImportacionTemas()
