@@ -15,7 +15,9 @@ beforeAll(() => {
   } as unknown as typeof ResizeObserver
 })
 
-const carreras = [{ value: 'c-sof', label: 'Ingeniería en Software — Facultad de Ciencias de la Vida' }]
+const carreras = [
+  { value: 'c-sof', label: 'Ingeniería en Software — Facultad de Ciencias de la Vida' },
+]
 const lineas = [{ value: 'l-ia', label: 'Inteligencia artificial' }]
 
 describe('FiltrosBancoTemas', () => {
@@ -50,7 +52,11 @@ describe('FiltrosBancoTemas', () => {
       />,
     )
     fireEvent.click(screen.getByRole('checkbox', { name: 'Solo disponibles' }))
-    expect(onChange).toHaveBeenCalledWith({ ...FILTROS_BANCO_INICIALES, estado: '', disponible: true })
+    expect(onChange).toHaveBeenCalledWith({
+      ...FILTROS_BANCO_INICIALES,
+      estado: '',
+      disponible: true,
+    })
     rerender(
       <FiltrosBancoTemas
         valores={{ ...FILTROS_BANCO_INICIALES, disponible: true }}
@@ -73,7 +79,12 @@ describe('filtrosTemaDesdeBanco', () => {
       disponible: undefined,
     })
     expect(
-      filtrosTemaDesdeBanco({ ...FILTROS_BANCO_INICIALES, carreraId: 'c', tipo: 'PAREJA', disponible: true }),
+      filtrosTemaDesdeBanco({
+        ...FILTROS_BANCO_INICIALES,
+        carreraId: 'c',
+        tipo: 'PAREJA',
+        disponible: true,
+      }),
     ).toEqual({ carreraId: 'c', lineaId: '', tipo: 'PAREJA', estado: '', disponible: true })
   })
 })

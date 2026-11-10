@@ -9,10 +9,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useDocentes, useLineas } from '@/features/catalogos/api'
-import { opciones, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { Tema, TipoTema } from '@/types/dominio'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { useGuardarTema } from './api'
+import { opcionesTipoTema } from './integrantes'
 import { temaSchema, type TemaForm } from './schemas'
 
 /** RF-20 / RF-21: registro y edición de temas del banco de una carrera (no dependen del período). */
@@ -21,6 +22,8 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
   const docentes = useDocentes()
   const facultades = useFacultades()
   const guardar = useGuardarTema()
+  const { periodo } = usePeriodo()
+  const maxPeriodo = periodo?.maxIntegrantesDefault
   const { register, handleSubmit, control, formState, setValue, watch } = useForm<TemaForm>({
     resolver: zodResolver(temaSchema) as never,
     defaultValues: tema
@@ -94,7 +97,16 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
           </>
         )}
       </Campo>
-      <Campo etiqueta="Tipo de tema" requerido error={e.tipo?.message}>
+      <Campo
+        etiqueta="Tipo de tema"
+        requerido
+        error={e.tipo?.message}
+        ayuda={
+          periodo
+            ? `El máximo de integrantes de un tema grupal es ${maxPeriodo}, según el período ${periodo.nombre}.`
+            : 'El máximo de integrantes de un tema grupal lo define el período.'
+        }
+      >
         {(p) => (
           <Controller
             control={control}
@@ -105,7 +117,7 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
                 value={field.value}
                 disabled={conPostulaciones}
                 onChange={(v) => field.onChange(v as TipoTema)}
-                opciones={opciones(TIPO_TEMA)}
+                opciones={opcionesTipoTema(maxPeriodo)}
               />
             )}
           />

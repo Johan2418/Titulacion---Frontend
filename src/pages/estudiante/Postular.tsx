@@ -32,6 +32,7 @@ import {
   integrantesActivos,
   moverElemento,
   ordenarSugeridos,
+  perteneceAGrupo,
   verificarPostulacion,
 } from '@/features/postulaciones/reglas'
 import { useSeguimiento } from '@/features/seguimiento/api'
@@ -64,14 +65,19 @@ export default function Postular() {
   const g = grupo.data ?? null
   const estudianteId = usuario.estudianteId ?? ''
   const admiteIndividual = !!t && t.minIntegrantes <= 1
+  // RN-04: a member of a group cannot apply individually; only the representative applies
+  const enGrupo = perteneceAGrupo(g, estudianteId)
+  const puedeIndividual = admiteIndividual && !enGrupo
   const puedeGrupal = esRepresentante(g, estudianteId)
+  const maxPeriodo = periodo?.maxIntegrantesDefault
 
   useEffect(() => {
-    if (t && modalidad === null) {
-      if (puedeGrupal && maxIntegrantes(t) >= 2) setModalidad('GRUPAL')
-      else if (admiteIndividual) setModalidad('INDIVIDUAL')
+    // wait for the group so INDIVIDUAL is never preselected for a group member
+    if (t && !grupo.isPending && modalidad === null) {
+      if (puedeGrupal && maxIntegrantes(t, maxPeriodo) >= 2) setModalidad('GRUPAL')
+      else if (puedeIndividual) setModalidad('INDIVIDUAL')
     }
-  }, [t, modalidad, puedeGrupal, admiteIndividual])
+  }, [t, grupo.isPending, modalidad, puedeGrupal, puedeIndividual, maxPeriodo])
 
   // RF-11: el docente proponente se sugiere primero
   useEffect(() => {
@@ -159,7 +165,7 @@ export default function Postular() {
               <CardTitle>¿Cómo vas a postular?</CardTitle>
               <CardDescription>
                 Una postulación es individual o grupal, nunca ambas (RN-04). Este tema admite entre{' '}
-                {t.minIntegrantes} y {maxIntegrantes(t)} integrante(s).
+                {t.minIntegrantes} y {maxIntegrantes(t, maxPeriodo)} integrante(s).
               </CardDescription>
             </CardHeader>
             <CardContent
@@ -172,8 +178,14 @@ export default function Postular() {
                   valor: 'INDIVIDUAL' as const,
                   icono: UserIcon,
                   titulo: 'Individual',
-                  habilitado: admiteIndividual,
-                  nota: admiteIndividual ? 'Postulas solo tú.' : 'El tema no admite 1 integrante.',
+                  habilitado: puedeIndividual,
+                  nota: !admiteIndividual
+                    ? 'El tema no admite 1 integrante.'
+                    : enGrupo
+                      ? puedeGrupal
+                        ? 'Perteneces a un grupo: postula de forma grupal.'
+                        : 'Perteneces a un grupo: la postulación la realiza el representante.'
+                      : 'Postulas solo tú.',
                 },
                 {
                   valor: 'GRUPAL' as const,
@@ -206,7 +218,15 @@ export default function Postular() {
                   </span>
                 </button>
               ))}
-              {!admiteIndividual && !puedeGrupal && (
+              {enGrupo && !puedeGrupal && (
+                <Alert variant="warning" className="sm:col-span-2">
+                  <AlertDescription>
+                    Perteneces al grupo &quot;{g?.nombre}&quot;: solo su representante puede
+                    postular a un tema en nombre del grupo. Coordina la postulación con él.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!enGrupo && !admiteIndividual && !puedeGrupal && (
                 <Alert variant="warning" className="sm:col-span-2">
                   <AlertDescription>
                     No cumples las condiciones para postular a este tema.{' '}

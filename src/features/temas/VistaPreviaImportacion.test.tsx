@@ -71,7 +71,9 @@ describe('VistaPreviaImportacion', () => {
               docente: null,
               estado: 'PENDIENTE_DOCENTE',
               candidatos: [{ id: 'd2', nombres: 'Juan', apellidos: 'Pérez Loor' }],
-              advertencias: ['Varios docentes de la carrera coinciden con «PÉREZ»; elige el docente.'],
+              advertencias: [
+                'Varios docentes de la carrera coinciden con «PÉREZ»; elige el docente.',
+              ],
             }),
           ],
           false,
@@ -122,14 +124,26 @@ describe('VistaPreviaImportacion', () => {
         )}
       />,
     )
-    expect(screen.getByText('Tema repetido en el archivo (fila 10); se omitirá.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Tema repetido en el archivo (fila 10); se omitirá.'),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Confirmar importación/ }))
     expect(onConfirmar).toHaveBeenCalledOnce()
   })
 
   it.each([
-    ['ofrece los candidatos de la fila cuando existen', [{ id: 'd3', nombres: 'Ana', apellidos: 'Ruiz' }], 'Ana Ruiz', 'Juan Pérez Loor'],
-    ['ofrece los docentes activos de la carrera cuando no hay candidatos', [], 'Juan Pérez Loor', 'Ana Ruiz'],
+    [
+      'ofrece los candidatos de la fila cuando existen',
+      [{ id: 'd3', nombres: 'Ana', apellidos: 'Ruiz' }],
+      'Ana Ruiz',
+      'Juan Pérez Loor',
+    ],
+    [
+      'ofrece los docentes activos de la carrera cuando no hay candidatos',
+      [],
+      'Juan Pérez Loor',
+      'Ana Ruiz',
+    ],
   ])('%s', async (_n, candidatos, presente, ausente) => {
     render(
       <VistaPreviaImportacion

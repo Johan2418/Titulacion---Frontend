@@ -5,6 +5,9 @@ import { PageHeader } from '@/components/PageHeader'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { useUsuario } from '@/auth/AuthProvider'
+import { useMiGrupo } from '@/features/grupos/api'
+import { esRepresentante, perteneceAGrupo } from '@/features/postulaciones/reglas'
 import { useTema } from '@/features/temas/api'
 import { maxIntegrantes } from '@/features/temas/integrantes'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
@@ -16,7 +19,14 @@ import { DisponibilidadTema } from './componentes'
 export default function DetalleTema() {
   const { id } = useParams()
   const query = useTema(id)
-  const { periodo } = usePeriodo()
+  const { periodo, periodoId } = usePeriodo()
+  const usuario = useUsuario()
+  const grupo = useMiGrupo(periodoId)
+  const estudianteId = usuario.estudianteId ?? ''
+  // RN-04: only the representative applies on behalf of the group
+  const soloRepresentante =
+    perteneceAGrupo(grupo.data ?? null, estudianteId) &&
+    !esRepresentante(grupo.data ?? null, estudianteId)
   const abierto =
     periodo?.estado === 'POSTULACION_ABIERTA' &&
     dentroDeRango(periodo.fechaInicioPostulacion, periodo.fechaFinPostulacion)
@@ -36,11 +46,25 @@ export default function DetalleTema() {
               descripcion={<DisponibilidadTema tema={t} />}
               acciones={
                 t.disponible && abierto ? (
-                  <Button asChild>
-                    <Link to={`/estudiante/temas/${t.id}/postular`}>
-                      <SendIcon /> Postular
-                    </Link>
-                  </Button>
+                  soloRepresentante ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <Button disabled aria-describedby="postular-solo-representante">
+                        <SendIcon /> Postular
+                      </Button>
+                      <p
+                        id="postular-solo-representante"
+                        className="max-w-xs text-right text-xs text-muted-foreground"
+                      >
+                        Perteneces a un grupo: la postulación la realiza el representante.
+                      </p>
+                    </div>
+                  ) : (
+                    <Button asChild>
+                      <Link to={`/estudiante/temas/${t.id}/postular`}>
+                        <SendIcon /> Postular
+                      </Link>
+                    </Button>
+                  )
                 ) : undefined
               }
             />
@@ -75,7 +99,8 @@ export default function DetalleTema() {
                   <div>
                     <dt className="text-muted-foreground">Integrantes</dt>
                     <dd className="font-medium">
-                      Mínimo {t.minIntegrantes} · Máximo {maxIntegrantes(t)}
+                      Mínimo {t.minIntegrantes} · Máximo{' '}
+                      {maxIntegrantes(t, periodo?.maxIntegrantesDefault)}
                     </dd>
                   </div>
                   <div>

@@ -3,55 +3,65 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ULEAM palette as used by the institutional Moodle (aulavirtualmoodle.uleam.edu.ec):
+ *   Red        #EC3237  navbar active item, headings, primary buttons
+ *   Dark gray  #424242  navbar, secondary dark buttons
+ *   Panel      #F8F9FA  side panels
+ *   Border     #E5E5E5  card borders and dividers
+ */
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.985 0.002 247);
-  --foreground: oklch(0.21 0.03 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.03 265);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.03 265);
-  --primary: oklch(0.38 0.13 262);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.95 0.01 255);
-  --secondary-foreground: oklch(0.25 0.04 265);
-  --muted: oklch(0.96 0.006 255);
-  --muted-foreground: oklch(0.48 0.03 260);
-  --accent: oklch(0.94 0.02 255);
-  --accent-foreground: oklch(0.25 0.05 265);
-  --destructive: oklch(0.55 0.21 27);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.9 0.01 255);
-  --input: oklch(0.88 0.012 255);
-  --ring: oklch(0.5 0.15 262);
-  --sidebar: oklch(0.27 0.07 264);
-  --sidebar-foreground: oklch(0.95 0.01 255);
-  --sidebar-accent: oklch(0.35 0.09 264);
+  --uleam-red: #ec3237;
+  --uleam-gray: #424242;
+
+  --background: #ffffff;
+  --foreground: #333333;
+  --card: #ffffff;
+  --card-foreground: #333333;
+  --popover: #ffffff;
+  --popover-foreground: #333333;
+  --primary: var(--uleam-red);
+  --primary-foreground: #ffffff;
+  --secondary: var(--uleam-gray);
+  --secondary-foreground: #ffffff;
+  --muted: #f8f9fa;
+  --muted-foreground: #6c6c6c;
+  --accent: #f8f9fa;
+  --accent-foreground: #333333;
+  --destructive: #b3141b;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #d6d6d6;
+  --ring: var(--uleam-red);
+  --sidebar: var(--uleam-gray);
+  --sidebar-foreground: #ffffff;
+  --sidebar-accent: var(--uleam-red);
 }
 
 .dark {
-  --background: oklch(0.17 0.02 265);
-  --foreground: oklch(0.96 0.005 255);
-  --card: oklch(0.21 0.025 265);
-  --card-foreground: oklch(0.96 0.005 255);
-  --popover: oklch(0.21 0.025 265);
-  --popover-foreground: oklch(0.96 0.005 255);
-  --primary: oklch(0.72 0.12 260);
-  --primary-foreground: oklch(0.18 0.03 265);
-  --secondary: oklch(0.28 0.03 265);
-  --secondary-foreground: oklch(0.96 0.005 255);
-  --muted: oklch(0.26 0.025 265);
-  --muted-foreground: oklch(0.72 0.02 260);
-  --accent: oklch(0.3 0.04 265);
-  --accent-foreground: oklch(0.96 0.005 255);
-  --destructive: oklch(0.65 0.2 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.32 0.03 265);
-  --input: oklch(0.36 0.03 265);
-  --ring: oklch(0.72 0.12 260);
-  --sidebar: oklch(0.14 0.02 265);
-  --sidebar-foreground: oklch(0.95 0.01 255);
-  --sidebar-accent: oklch(0.25 0.04 265);
+  --background: #1f1f1f;
+  --foreground: #f2f2f2;
+  --card: #2a2a2a;
+  --card-foreground: #f2f2f2;
+  --popover: #2a2a2a;
+  --popover-foreground: #f2f2f2;
+  --primary: var(--uleam-red);
+  --primary-foreground: #ffffff;
+  --secondary: #4a4a4a;
+  --secondary-foreground: #ffffff;
+  --muted: #2f2f2f;
+  --muted-foreground: #b3b3b3;
+  --accent: #333333;
+  --accent-foreground: #f2f2f2;
+  --destructive: #f2545b;
+  --destructive-foreground: #1f1f1f;
+  --border: #3a3a3a;
+  --input: #474747;
+  --ring: var(--uleam-red);
+  --sidebar: #2b2b2b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-accent: var(--uleam-red);
 }
 
 @theme inline {

@@ -21,7 +21,9 @@ import {
 } from '@/features/temas/FiltrosBancoTemas'
 import { FormTema } from '@/features/temas/FormTema'
 import { ImportarTemas } from '@/features/temas/ImportarTemas'
-import { ESTADO_TEMA, TIPO_TEMA } from '@/lib/estados'
+import { etiquetaTipoTema } from '@/features/temas/integrantes'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { ESTADO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { Tema } from '@/types/dominio'
 
@@ -31,6 +33,7 @@ export default function Temas() {
   const lineas = useLineas()
   const facultades = useFacultades()
   const query = useTemas(filtrosTemaDesdeBanco(filtros))
+  const { periodo } = usePeriodo()
   const [editando, setEditando] = useState<Tema | null | 'nuevo'>(null)
   const [importando, setImportando] = useState(false)
 
@@ -47,7 +50,7 @@ export default function Temas() {
     { header: 'Carrera', accessorFn: (t) => t.carrera.nombre },
     { header: 'Línea', accessorFn: (t) => t.linea.nombre },
     { header: 'Proponente', accessorFn: (t) => nombreCompleto(t.docenteProponente) },
-    { header: 'Tipo', accessorFn: (t) => TIPO_TEMA[t.tipo].label },
+    { header: 'Tipo', accessorFn: (t) => etiquetaTipoTema(t.tipo, periodo?.maxIntegrantesDefault) },
     { header: 'Postul. abiertas', accessorKey: 'postulacionesAbiertas' },
     {
       header: 'Estado',

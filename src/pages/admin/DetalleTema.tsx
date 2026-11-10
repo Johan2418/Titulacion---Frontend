@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TablaPostulaciones } from '@/features/postulaciones/TablaPostulaciones'
 import { usePostulaciones } from '@/features/postulaciones/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { textoIntegrantes } from '@/features/temas/integrantes'
+import { etiquetaTipoTema, textoIntegrantes } from '@/features/temas/integrantes'
 import { AccionesTema } from '@/features/temas/AccionesTema'
 import { useHistorialTema, useTema } from '@/features/temas/api'
 import { formatFechaHora } from '@/lib/fechas'
-import { ESTADO_TEMA, TIPO_TEMA } from '@/lib/estados'
+import { ESTADO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 
 export default function DetalleTemaAdmin() {
@@ -21,7 +21,8 @@ export default function DetalleTemaAdmin() {
   const tema = useTema(id)
   const historial = useHistorialTema(id)
   // el tema pertenece al banco de su carrera: sus postulaciones se consultan en el período seleccionado
-  const { periodoId } = usePeriodo()
+  const { periodo, periodoId } = usePeriodo()
+  const maxPeriodo = periodo?.maxIntegrantesDefault
   const postulaciones = usePostulaciones({ periodoId, temaId: id })
 
   return (
@@ -39,8 +40,8 @@ export default function DetalleTemaAdmin() {
               descripcion={
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge mapa={ESTADO_TEMA} valor={t.estado} /> {t.linea.nombre} · Proponente:{' '}
-                  {nombreCompleto(t.docenteProponente)} · {TIPO_TEMA[t.tipo].label} ·{' '}
-                  {textoIntegrantes(t)} integrante(s)
+                  {nombreCompleto(t.docenteProponente)} · {etiquetaTipoTema(t.tipo, maxPeriodo)} ·{' '}
+                  {textoIntegrantes(t, maxPeriodo)} integrante(s)
                 </span>
               }
               acciones={<AccionesTema tema={t} size="default" />}
