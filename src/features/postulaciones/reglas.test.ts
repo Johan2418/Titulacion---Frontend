@@ -5,6 +5,7 @@ import {
   moverElemento,
   opcionesTemas,
   ordenarSugeridos,
+  perteneceAGrupo,
   verificarPostulacion,
   type ContextoPostulacion,
 } from './reglas'
@@ -107,6 +108,14 @@ describe('verificarPostulacion', () => {
       expect(fallidas(grupal)).toEqual([])
     })
 
+    it('RN-04: un integrante activo de un grupo no puede postular de forma individual', () => {
+      const individual = { ...base, grupo, tema: { ...base.tema, minIntegrantes: 1 } }
+      expect(fallidas({ ...individual, estudianteId: 'e2' })).toContain('sin-grupo')
+      expect(fallidas({ ...individual, estudianteId: 'e1' })).toContain('sin-grupo')
+      // un integrante retirado ya no pertenece al grupo
+      expect(fallidas({ ...individual, estudianteId: 'e3' })).toEqual([])
+    })
+
     it('RN-04: solo el representante puede postular al grupo', () => {
       expect(fallidas({ ...grupal, estudianteId: 'e2' })).toContain('grupo')
     })
@@ -134,6 +143,15 @@ describe('utilidades', () => {
     expect(
       esRepresentante({ integrantes: [integrante('e1', 'REPRESENTANTE', 'RETIRADO')] }, 'e1'),
     ).toBe(false)
+  })
+
+  it('perteneceAGrupo considera solo integrantes activos', () => {
+    const grupo = {
+      integrantes: [integrante('e1', 'REPRESENTANTE'), integrante('e2', 'INTEGRANTE', 'RETIRADO')],
+    }
+    expect(perteneceAGrupo(grupo, 'e1')).toBe(true)
+    expect(perteneceAGrupo(grupo, 'e2')).toBe(false)
+    expect(perteneceAGrupo(null, 'e1')).toBe(false)
   })
 
   it('RF-11: el docente proponente se sugiere primero', () => {

@@ -38,6 +38,11 @@ export function esRepresentante(grupo: Pick<Grupo, 'integrantes'> | null, estudi
   )
 }
 
+/** RN-04: an active member of a group cannot apply individually (mirrors the backend). */
+export function perteneceAGrupo(grupo: Pick<Grupo, 'integrantes'> | null, estudianteId: string) {
+  return integrantesActivos(grupo).some((i) => i.estudiante.id === estudianteId)
+}
+
 /**
  * Verificaciones previas a postular (RF-04, RF-08, RF-09, RN-04, RN-05, RN-08).
  * Son solo una ayuda para el usuario: el backend vuelve a validar todo.
@@ -79,6 +84,14 @@ export function verificarPostulacion(c: ContextoPostulacion): Verificacion[] {
       regla: 'RN-08',
     },
   ]
+  if (c.modalidad === 'INDIVIDUAL') {
+    v.push({
+      id: 'sin-grupo',
+      ok: !perteneceAGrupo(c.grupo, c.estudianteId),
+      mensaje: 'No perteneces a un grupo del período (si perteneces, postula el representante).',
+      regla: 'RN-04',
+    })
+  }
   if (c.modalidad === 'GRUPAL') {
     v.push(
       {

@@ -14,14 +14,15 @@ import {
 } from '@/components/ui/table'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { useMisTemas } from '@/features/temas/api'
-import { textoIntegrantes } from '@/features/temas/integrantes'
+import { etiquetaTipoTema, textoIntegrantes } from '@/features/temas/integrantes'
 import { formatFechaHora } from '@/lib/fechas'
-import { ESTADO_POSTULACION, ESTADO_TEMA, MODALIDAD, TIPO_TEMA } from '@/lib/estados'
+import { ESTADO_POSTULACION, ESTADO_TEMA, MODALIDAD } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 
 /** RF-37: temas propuestos por el docente, su estado y sus postulaciones. */
 export default function MisTemas() {
-  const { periodoId } = usePeriodo()
+  const { periodo, periodoId } = usePeriodo()
+  const maxPeriodo = periodo?.maxIntegrantesDefault
   const query = useMisTemas(periodoId)
   return (
     <>
@@ -42,7 +43,8 @@ export default function MisTemas() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{t.titulo}</p>
                         <p className="text-sm text-muted-foreground">
-                          {t.linea.nombre} · {TIPO_TEMA[t.tipo].label} · {textoIntegrantes(t)} integrante(s)
+                          {t.linea.nombre} · {etiquetaTipoTema(t.tipo, maxPeriodo)} ·{' '}
+                          {textoIntegrantes(t, maxPeriodo)} integrante(s)
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
