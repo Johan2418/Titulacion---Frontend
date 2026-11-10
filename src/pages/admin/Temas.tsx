@@ -1,36 +1,38 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PencilIcon, PlusIcon } from 'lucide-react'
-import { SelectSimple } from '@/components/Campo'
+import { PencilIcon, PlusIcon, UploadIcon } from 'lucide-react'
 import { DataTable } from '@/components/DataTable'
-import { ConsultaEstado, Vacio } from '@/components/Estados'
+import { ConsultaEstado } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useLineas } from '@/features/catalogos/api'
-import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { AccionesTema } from '@/features/temas/AccionesTema'
 import { useTemas } from '@/features/temas/api'
+import {
+  FILTROS_BANCO_INICIALES,
+  FiltrosBancoTemas,
+  filtrosTemaDesdeBanco,
+  type FiltrosBanco,
+} from '@/features/temas/FiltrosBancoTemas'
 import { FormTema } from '@/features/temas/FormTema'
-import { ESTADO_TEMA, opciones } from '@/lib/estados'
+import { ImportarTemas } from '@/features/temas/ImportarTemas'
+import { ESTADO_TEMA, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
-import type { EstadoTema, Tema } from '@/types/dominio'
+import type { Tema } from '@/types/dominio'
 
-/** RF-20 / RF-21 */
+/** RF-20 / RF-21: banco de temas por carrera, común a todos los períodos. */
 export default function Temas() {
-  const { periodo, periodoId } = usePeriodo()
-  const [estado, setEstado] = useState<EstadoTema | ''>('')
-  const [lineaId, setLineaId] = useState('')
-  const [carreraId, setCarreraId] = useState('')
+  const [filtros, setFiltros] = useState<FiltrosBanco>(FILTROS_BANCO_INICIALES)
   const lineas = useLineas()
   const facultades = useFacultades()
-  const carreras = carrerasDeFacultad(facultades.data, periodo?.facultadId)
-  const query = useTemas({ periodoId, estado, lineaId, carreraId })
+  const query = useTemas(filtrosTemaDesdeBanco(filtros))
   const [editando, setEditando] = useState<Tema | null | 'nuevo'>(null)
+  const [importando, setImportando] = useState(false)
 
   const columnas: ColumnDef<Tema>[] = [
     {
@@ -45,11 +47,7 @@ export default function Temas() {
     { header: 'Carrera', accessorFn: (t) => t.carrera.nombre },
     { header: 'Línea', accessorFn: (t) => t.linea.nombre },
     { header: 'Proponente', accessorFn: (t) => nombreCompleto(t.docenteProponente) },
-    {
-      header: 'Integrantes',
-      accessorFn: (t) => `${t.minIntegrantes}–${t.maxIntegrantes}`,
-      enableSorting: false,
-    },
+    { header: 'Tipo', accessorFn: (t) => TIPO_TEMA[t.tipo].label },
     { header: 'Postul. abiertas', accessorKey: 'postulacionesAbiertas' },
     {
       header: 'Estado',
@@ -62,7 +60,7 @@ export default function Temas() {
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <AccionesTema tema={row.original} />
-          {row.original.estado !== 'ASIGNADO' && row.original.estado !== 'RETIRADO' && (
+          {row.original.estado !== 'ASIGNADO' && (
             <Button
               variant="ghost"
               size="icon"
@@ -77,16 +75,20 @@ export default function Temas() {
     },
   ]
 
-  if (!periodoId) return <Vacio titulo="Seleccione un período" />
   return (
     <>
       <PageHeader
-        titulo="Temas"
-        descripcion="Registro, publicación, cierre y retiro de temas del período."
+        titulo="Banco de temas"
+        descripcion="Temas por carrera, disponibles en todos los períodos mientras no tengan una asignación vigente."
         acciones={
-          <Button onClick={() => setEditando('nuevo')}>
-            <PlusIcon /> Registrar tema
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setImportando(true)}>
+              <UploadIcon /> Importar temas
+            </Button>
+            <Button onClick={() => setEditando('nuevo')}>
+              <PlusIcon /> Registrar tema
+            </Button>
+          </>
         }
       />
       <div className="mb-4 empty:hidden">
@@ -100,32 +102,12 @@ export default function Temas() {
             etiqueta="Temas"
             placeholderBusqueda="Buscar por título o docente…"
             filtros={
-              <>
-                <SelectSimple
-                  aria-label="Filtrar por carrera"
-                  className="sm:w-56"
-                  value={carreraId}
-                  onChange={setCarreraId}
-                  todos="Todas las carreras"
-                  opciones={opcionesCarreras(carreras)}
-                />
-                <SelectSimple
-                  aria-label="Filtrar por estado"
-                  className="sm:w-44"
-                  value={estado}
-                  onChange={(v) => setEstado(v as EstadoTema | '')}
-                  todos="Todos los estados"
-                  opciones={opciones(ESTADO_TEMA)}
-                />
-                <SelectSimple
-                  aria-label="Filtrar por línea"
-                  className="sm:w-56"
-                  value={lineaId}
-                  onChange={setLineaId}
-                  todos="Todas las líneas"
-                  opciones={(lineas.data ?? []).map((x) => ({ value: x.id, label: x.nombre }))}
-                />
-              </>
+              <FiltrosBancoTemas
+                valores={filtros}
+                onChange={setFiltros}
+                carreras={opcionesCarrerasConFacultad(facultades.data)}
+                lineas={(lineas.data ?? []).map((x) => ({ value: x.id, label: x.nombre }))}
+              />
             }
           />
         )}
@@ -138,14 +120,12 @@ export default function Temas() {
           {editando !== null && (
             <FormTema
               tema={editando === 'nuevo' ? null : editando}
-              periodoId={periodoId}
-              facultadId={periodo?.facultadId}
-              maxDefault={periodo?.maxIntegrantesDefault ?? 3}
               onClose={() => setEditando(null)}
             />
           )}
         </DialogContent>
       </Dialog>
+      <ImportarTemas abierto={importando} onClose={() => setImportando(false)} />
     </>
   )
 }

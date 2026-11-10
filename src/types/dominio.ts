@@ -39,6 +39,9 @@ export type EstadoInvitacion = 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'CANCELA
 export const ESTADOS_TEMA = ['BORRADOR', 'PUBLICADO', 'CERRADO', 'ASIGNADO', 'RETIRADO'] as const
 export type EstadoTema = (typeof ESTADOS_TEMA)[number]
 
+export const TIPOS_TEMA = ['INDIVIDUAL', 'PAREJA', 'GRUPO'] as const
+export type TipoTema = (typeof TIPOS_TEMA)[number]
+
 export const ESTADOS_POSTULACION = [
   'PENDIENTE',
   'EN_CONFLICTO',
@@ -233,14 +236,16 @@ export interface LoteImportacion {
 
 export interface Tema {
   id: UUID
-  periodoId: UUID
   carrera: CarreraResumen
   linea: Pick<LineaInvestigacion, 'id' | 'nombre'>
   docenteProponente: DocenteResumen
   titulo: string
   descripcion: string
+  /** INDIVIDUAL = 1, PAREJA = 2, GRUPO = 3 up to the period max */
+  tipo: TipoTema
   minIntegrantes: number
-  maxIntegrantes: number
+  /** null for GRUPO when the list was requested without a period */
+  maxIntegrantes: number | null
   estado: EstadoTema
   creadoEn: ISODate
   /** RF-07: publicado y sin asignación vigente */

@@ -14,8 +14,9 @@ import {
 } from '@/components/ui/table'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { useMisTemas } from '@/features/temas/api'
+import { textoIntegrantes } from '@/features/temas/integrantes'
 import { formatFechaHora } from '@/lib/fechas'
-import { ESTADO_POSTULACION, ESTADO_TEMA, MODALIDAD } from '@/lib/estados'
+import { ESTADO_POSTULACION, ESTADO_TEMA, MODALIDAD, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 
 /** RF-37: temas propuestos por el docente, su estado y sus postulaciones. */
@@ -26,12 +27,12 @@ export default function MisTemas() {
     <>
       <PageHeader
         titulo="Mis temas"
-        descripcion="Temas que propusiste en el período, su estado y las postulaciones recibidas."
+        descripcion="Temas que propusiste (banco de tu carrera), su estado y las postulaciones del período seleccionado."
       />
       <ConsultaEstado query={query}>
         {(temas) =>
           temas.length === 0 ? (
-            <Vacio titulo="No tienes temas en este período" />
+            <Vacio titulo="No tienes temas en el banco" />
           ) : (
             <div className="space-y-3">
               {temas.map((t) => (
@@ -41,7 +42,7 @@ export default function MisTemas() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{t.titulo}</p>
                         <p className="text-sm text-muted-foreground">
-                          {t.linea.nombre} · {t.minIntegrantes}–{t.maxIntegrantes} integrante(s)
+                          {t.linea.nombre} · {TIPO_TEMA[t.tipo].label} · {textoIntegrantes(t)} integrante(s)
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

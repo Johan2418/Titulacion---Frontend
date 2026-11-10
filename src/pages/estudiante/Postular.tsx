@@ -36,6 +36,7 @@ import {
 } from '@/features/postulaciones/reglas'
 import { useSeguimiento } from '@/features/seguimiento/api'
 import { useTema } from '@/features/temas/api'
+import { maxIntegrantes } from '@/features/temas/integrantes'
 import { cn, nombreCompleto } from '@/lib/utils'
 import type { Modalidad } from '@/types/dominio'
 
@@ -67,7 +68,7 @@ export default function Postular() {
 
   useEffect(() => {
     if (t && modalidad === null) {
-      if (puedeGrupal && t.maxIntegrantes >= 2) setModalidad('GRUPAL')
+      if (puedeGrupal && maxIntegrantes(t) >= 2) setModalidad('GRUPAL')
       else if (admiteIndividual) setModalidad('INDIVIDUAL')
     }
   }, [t, modalidad, puedeGrupal, admiteIndividual])
@@ -158,7 +159,7 @@ export default function Postular() {
               <CardTitle>¿Cómo vas a postular?</CardTitle>
               <CardDescription>
                 Una postulación es individual o grupal, nunca ambas (RN-04). Este tema admite entre{' '}
-                {t.minIntegrantes} y {t.maxIntegrantes} integrante(s).
+                {t.minIntegrantes} y {maxIntegrantes(t)} integrante(s).
               </CardDescription>
             </CardHeader>
             <CardContent

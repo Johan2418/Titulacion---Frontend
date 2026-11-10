@@ -21,6 +21,7 @@ import type {
   SituacionIngreso,
   TipoAsignacionTutor,
   TipoReporte,
+  TipoTema,
 } from '@/types/dominio'
 
 /** Variante visual del badge (ver components/StatusBadge). */
@@ -47,6 +48,12 @@ export const ESTADO_TEMA: Mapa<EstadoTema> = {
   CERRADO: { label: 'Cerrado', tono: 'warning' },
   ASIGNADO: { label: 'Asignado', tono: 'info' },
   RETIRADO: { label: 'Retirado', tono: 'danger' },
+}
+
+export const TIPO_TEMA: Mapa<TipoTema> = {
+  INDIVIDUAL: { label: 'Individual (1 integrante)', tono: 'neutral' },
+  PAREJA: { label: 'Pareja (2 integrantes)', tono: 'info' },
+  GRUPO: { label: 'Grupo (3 o más integrantes)', tono: 'success' },
 }
 
 export const ESTADO_POSTULACION: Mapa<EstadoPostulacion> = {

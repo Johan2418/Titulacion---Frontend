@@ -4,8 +4,8 @@ import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { usePostulaciones } from '@/features/postulaciones/api'
+import { opcionesTemas } from '@/features/postulaciones/reglas'
 import { TablaPostulaciones } from '@/features/postulaciones/TablaPostulaciones'
-import { useTemas } from '@/features/temas/api'
 import { ESTADO_POSTULACION, MODALIDAD, opciones } from '@/lib/estados'
 import type { EstadoPostulacion, Modalidad } from '@/types/dominio'
 
@@ -15,7 +15,9 @@ export default function Postulaciones() {
   const [temaId, setTemaId] = useState('')
   const [estado, setEstado] = useState<EstadoPostulacion | ''>('')
   const [modalidad, setModalidad] = useState<Modalidad | ''>('')
-  const temas = useTemas({ periodoId })
+  // Topics live in the career bank; the filter offers only the topics applied to in this period.
+  // Same filter shape as the unfiltered list, so React Query shares the request when no filter is set.
+  const todas = usePostulaciones({ periodoId, temaId: '', estado: '', modalidad: '' })
   const query = usePostulaciones({ periodoId, temaId, estado, modalidad })
   if (!periodoId) return <Vacio titulo="Seleccione un período" />
   return (
@@ -36,7 +38,7 @@ export default function Postulaciones() {
                   value={temaId}
                   onChange={setTemaId}
                   todos="Todos los temas"
-                  opciones={(temas.data ?? []).map((t) => ({ value: t.id, label: t.titulo }))}
+                  opciones={opcionesTemas(todas.data)}
                 />
                 <SelectSimple
                   aria-label="Filtrar por estado"

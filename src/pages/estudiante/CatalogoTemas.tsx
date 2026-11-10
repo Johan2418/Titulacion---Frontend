@@ -12,32 +12,32 @@ import { Label } from '@/components/ui/label'
 import { useLineas } from '@/features/catalogos/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { useProponentes, useTemas } from '@/features/temas/api'
+import { maxIntegrantes, textoIntegrantes } from '@/features/temas/integrantes'
+import { opciones, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
+import type { TipoTema } from '@/types/dominio'
 import { DisponibilidadTema } from './componentes'
 
-/** RF-05 / RF-07: catálogo de temas publicados con filtros y disponibilidad. */
+/** RF-05 / RF-07: temas publicados del banco de la carrera del estudiante, con filtros y disponibilidad. */
 export default function CatalogoTemas() {
   const { periodoId } = usePeriodo()
   const [lineaId, setLineaId] = useState('')
   const [docenteId, setDocenteId] = useState('')
-  const [numIntegrantes, setNum] = useState<number | ''>('')
+  const [tipo, setTipo] = useState<TipoTema | ''>('')
   const [disponible, setDisponible] = useState(true)
   const [texto, setTexto] = useState('')
   const lineas = useLineas()
   const docentes = useProponentes(periodoId)
-  const query = useTemas({
-    periodoId,
-    lineaId,
-    docenteId,
-    numIntegrantes,
-    disponible: disponible || undefined,
-  })
+  const query = useTemas(
+    { periodoId, lineaId, docenteId, tipo, disponible: disponible || undefined },
+    !!periodoId,
+  )
 
   return (
     <>
       <PageHeader
         titulo="Temas de titulación"
-        descripcion="Temas publicados en el período. Filtra y revisa su disponibilidad antes de postular."
+        descripcion="Temas publicados de tu carrera. Filtra y revisa su disponibilidad antes de postular."
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Input
@@ -63,14 +63,12 @@ export default function CatalogoTemas() {
           todos="Todos los docentes"
           opciones={(docentes.data ?? []).map((d) => ({ value: d.id, label: nombreCompleto(d) }))}
         />
-        <Input
-          type="number"
-          min={1}
-          max={10}
-          placeholder="Nº integrantes"
-          aria-label="Número de integrantes"
-          value={numIntegrantes}
-          onChange={(e) => setNum(e.target.value ? Number(e.target.value) : '')}
+        <SelectSimple
+          aria-label="Tipo de tema"
+          value={tipo}
+          onChange={(v) => setTipo(v as TipoTema | '')}
+          todos="Todos los tipos"
+          opciones={opciones(TIPO_TEMA)}
         />
         <div className="flex items-center gap-2">
           <Checkbox
@@ -114,15 +112,12 @@ export default function CatalogoTemas() {
                     </CardHeader>
                     <CardContent className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1 whitespace-nowrap">
-                        {t.maxIntegrantes > 1 ? (
+                        {maxIntegrantes(t) > 1 ? (
                           <UsersIcon className="size-4" aria-hidden />
                         ) : (
                           <UserIcon className="size-4" aria-hidden />
                         )}
-                        {t.minIntegrantes === t.maxIntegrantes
-                          ? t.minIntegrantes
-                          : `${t.minIntegrantes}–${t.maxIntegrantes}`}{' '}
-                        integrante(s)
+                        {TIPO_TEMA[t.tipo].label} · {textoIntegrantes(t)} integrante(s)
                       </span>
                       <span className="whitespace-nowrap">
                         {t.postulacionesAbiertas} postulación(es) abierta(s)

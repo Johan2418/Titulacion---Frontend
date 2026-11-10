@@ -6,33 +6,20 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { carrerasDeFacultad, opcionesCarreras, useFacultades } from '@/features/academico/api'
+import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useDocentes, useLineas } from '@/features/catalogos/api'
+import { opciones, TIPO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
-import type { Tema } from '@/types/dominio'
+import type { Tema, TipoTema } from '@/types/dominio'
 import { useGuardarTema } from './api'
 import { temaSchema, type TemaForm } from './schemas'
 
-/** RF-20 / RF-21: registro y edición de temas. */
-export function FormTema({
-  tema,
-  periodoId,
-  facultadId,
-  maxDefault,
-  onClose,
-}: {
-  tema: Tema | null
-  periodoId: string
-  /** Facultad del período: solo sus carreras son elegibles. */
-  facultadId: string | undefined
-  maxDefault: number
-  onClose: () => void
-}) {
+/** RF-20 / RF-21: registro y edición de temas del banco de una carrera (no dependen del período). */
+export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => void }) {
   const lineas = useLineas()
   const docentes = useDocentes()
   const facultades = useFacultades()
-  const carreras = carrerasDeFacultad(facultades.data, facultadId)
   const guardar = useGuardarTema()
   const { register, handleSubmit, control, formState, setValue, watch } = useForm<TemaForm>({
     resolver: zodResolver(temaSchema) as never,
@@ -43,8 +30,7 @@ export function FormTema({
           carreraId: tema.carrera.id,
           lineaId: tema.linea.id,
           docenteProponenteId: tema.docenteProponente.id,
-          minIntegrantes: tema.minIntegrantes,
-          maxIntegrantes: tema.maxIntegrantes,
+          tipo: tema.tipo,
         }
       : {
           titulo: '',
@@ -52,8 +38,7 @@ export function FormTema({
           carreraId: '',
           lineaId: '',
           docenteProponenteId: '',
-          minIntegrantes: 1,
-          maxIntegrantes: maxDefault,
+          tipo: undefined,
         },
   })
   const e = formState.errors
@@ -65,7 +50,7 @@ export function FormTema({
       noValidate
       className="grid gap-4 sm:grid-cols-2"
       onSubmit={handleSubmit((d) =>
-        guardar.mutate(tema ? { id: tema.id, ...d } : { ...d, periodoId }, { onSuccess: onClose }),
+        guardar.mutate(tema ? { id: tema.id, ...d } : d, { onSuccess: onClose }),
       )}
     >
       <Campo
@@ -84,16 +69,7 @@ export function FormTema({
       >
         {(p) => <Textarea {...p} rows={5} {...register('descripcion')} />}
       </Campo>
-      <Campo
-        etiqueta="Carrera"
-        requerido
-        error={e.carreraId?.message}
-        ayuda={
-          facultades.isLoading || facultades.isError || carreras.length
-            ? undefined
-            : 'La facultad del período no tiene carreras disponibles.'
-        }
-      >
+      <Campo etiqueta="Carrera" requerido error={e.carreraId?.message}>
         {(p) => (
           <>
             <Controller
@@ -103,18 +79,36 @@ export function FormTema({
                 <SelectSimple
                   {...p}
                   value={field.value}
+                  disabled={conPostulaciones}
                   onChange={(v) => {
                     if (v === field.value) return
                     field.onChange(v)
                     // el docente proponente debe pertenecer a la misma carrera del tema
                     setValue('docenteProponenteId', '')
                   }}
-                  opciones={opcionesCarreras(carreras)}
+                  opciones={opcionesCarrerasConFacultad(facultades.data)}
                 />
               )}
             />
             <ErrorCatalogo consulta={facultades} />
           </>
+        )}
+      </Campo>
+      <Campo etiqueta="Tipo de tema" requerido error={e.tipo?.message}>
+        {(p) => (
+          <Controller
+            control={control}
+            name="tipo"
+            render={({ field }) => (
+              <SelectSimple
+                {...p}
+                value={field.value}
+                disabled={conPostulaciones}
+                onChange={(v) => field.onChange(v as TipoTema)}
+                opciones={opciones(TIPO_TEMA)}
+              />
+            )}
+          />
         )}
       </Campo>
       <Campo etiqueta="Línea de investigación" requerido error={e.lineaId?.message}>
@@ -155,32 +149,10 @@ export function FormTema({
           />
         )}
       </Campo>
-      <Campo etiqueta="Mínimo de integrantes" requerido error={e.minIntegrantes?.message}>
-        {(p) => (
-          <Input
-            {...p}
-            type="number"
-            min={1}
-            disabled={conPostulaciones}
-            {...register('minIntegrantes')}
-          />
-        )}
-      </Campo>
-      <Campo etiqueta="Máximo de integrantes" requerido error={e.maxIntegrantes?.message}>
-        {(p) => (
-          <Input
-            {...p}
-            type="number"
-            min={1}
-            disabled={conPostulaciones}
-            {...register('maxIntegrantes')}
-          />
-        )}
-      </Campo>
       {conPostulaciones && (
         <Alert variant="info" className="sm:col-span-2">
           <AlertDescription>
-            El rango de integrantes no puede cambiarse mientras haya postulaciones abiertas.
+            La carrera y el tipo no pueden cambiarse mientras haya postulaciones abiertas.
           </AlertDescription>
         </Alert>
       )}

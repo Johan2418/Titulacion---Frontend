@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTema } from '@/features/temas/api'
+import { maxIntegrantes } from '@/features/temas/integrantes'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { dentroDeRango, formatFecha } from '@/lib/fechas'
 import { nombreCompleto } from '@/lib/utils'
@@ -74,7 +75,7 @@ export default function DetalleTema() {
                   <div>
                     <dt className="text-muted-foreground">Integrantes</dt>
                     <dd className="font-medium">
-                      Mínimo {t.minIntegrantes} · Máximo {t.maxIntegrantes}
+                      Mínimo {t.minIntegrantes} · Máximo {maxIntegrantes(t)}
                     </dd>
                   </div>
                   <div>

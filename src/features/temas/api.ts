@@ -11,55 +11,54 @@ import {
 import { FLUJO, K } from '@/api/claves'
 import { useMutacion } from '@/api/mutacion'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import type { DocenteResumen, EstadoTema, Postulacion, Tema } from '@/types/dominio'
+import type { DocenteResumen, EstadoTema, Postulacion, Tema, TipoTema } from '@/types/dominio'
 
 export interface FiltrosTema {
+  /** Period context: required for students; sets the GRUPO upper bound. */
   periodoId?: string
   carreraId?: string
   lineaId?: string
   docenteId?: string
   estado?: EstadoTema | ''
-  numIntegrantes?: number | ''
+  tipo?: TipoTema | ''
   disponible?: boolean
 }
 
 export type TemaInput = {
-  periodoId: string
   carreraId: string
   lineaId: string
   docenteProponenteId: string
+  tipo: TipoTema
   titulo: string
   descripcion: string
-  minIntegrantes: number
-  maxIntegrantes: number
 }
 
-export const listarTemas = async (periodoId: string, f: Omit<FiltrosTema, 'periodoId'> = {}) =>
-  (
-    await api.todas<TemaB>(`/periodos/${periodoId}/temas`, {
-      carreraId: f.carreraId,
-      lineaId: f.lineaId,
-      docenteProponenteId: f.docenteId,
-      estado: f.estado,
-      numIntegrantes: f.numIntegrantes,
-    })
-  ).map(tema)
+/** Query params of GET /temas (the HTTP client converts keys to snake_case and drops empty values). */
+export const consultaTemas = (f: FiltrosTema = {}) => ({
+  periodoId: f.periodoId,
+  carreraId: f.carreraId,
+  lineaId: f.lineaId,
+  docenteProponenteId: f.docenteId,
+  estado: f.estado,
+  tipo: f.tipo,
+  disponible: f.disponible === undefined ? undefined : String(f.disponible),
+})
+
+export const listarTemas = async (f: FiltrosTema = {}) =>
+  (await api.todas<TemaB>('/temas', consultaTemas(f))).map(tema)
 
 export const useTemas = (f: FiltrosTema, enabled = true) =>
   useQuery({
     queryKey: [...K.temas, f],
-    queryFn: async () => {
-      const temas = await listarTemas(f.periodoId!, f)
-      return f.disponible ? temas.filter((t) => t.disponible) : temas
-    },
-    enabled: enabled && !!f.periodoId,
+    queryFn: () => listarTemas(f),
+    enabled,
   })
 
-/** Docentes proponentes presentes en el catálogo (para filtrar sin consultar /docentes). */
+/** Docentes proponentes presentes en el catálogo del período (para filtrar sin consultar /docentes). */
 export const useProponentes = (periodoId?: string) =>
   useQuery({
     queryKey: [...K.temas, 'proponentes', periodoId],
-    queryFn: () => listarTemas(periodoId!),
+    queryFn: () => listarTemas({ periodoId }),
     enabled: !!periodoId,
     select: (temas: Tema[]) => {
       const porId = new Map<string, DocenteResumen>()
@@ -68,42 +67,31 @@ export const useProponentes = (periodoId?: string) =>
     },
   })
 
+/** Detalle del tema; el período seleccionado fija el máximo de GRUPO (y es obligatorio para estudiantes). */
 export const useTema = (id?: string) => {
   const { periodoId } = usePeriodo()
   return useQuery({
-    queryKey: [...K.temas, 'detalle', id],
-    queryFn: async () => tema(await api.get<TemaB>(`/periodos/${periodoId}/temas/${id}`)),
-    enabled: !!id && !!periodoId,
+    queryKey: [...K.temas, 'detalle', id, periodoId],
+    queryFn: async () => tema(await api.get<TemaB>(`/temas/${id}`, { periodoId })),
+    enabled: !!id,
   })
 }
 
-export const useHistorialTema = (id?: string) => {
-  const { periodoId } = usePeriodo()
-  return useQuery({
+export const useHistorialTema = (id?: string) =>
+  useQuery({
     queryKey: [...K.temas, 'historial', id],
     queryFn: async () =>
-      (await api.todas<TemaHistorialB>(`/periodos/${periodoId}/temas/${id}/historial`)).map(
-        temaHistorial,
-      ),
-    enabled: !!id && !!periodoId,
+      (await api.todas<TemaHistorialB>(`/temas/${id}/historial`)).map(temaHistorial),
+    enabled: !!id,
   })
-}
 
-export const useGuardarTema = () => {
-  const { periodoId: actual } = usePeriodo()
-  return useMutacion({
-    fn: async ({ id, periodoId, ...b }: Partial<TemaInput> & { id?: string }) => {
-      const pid = periodoId ?? actual
-      return tema(
-        id
-          ? await api.patch<TemaB>(`/periodos/${pid}/temas/${id}`, b)
-          : await api.post<TemaB>(`/periodos/${pid}/temas`, b),
-      )
-    },
+export const useGuardarTema = () =>
+  useMutacion({
+    fn: async ({ id, ...b }: Partial<TemaInput> & { id?: string }) =>
+      tema(id ? await api.patch<TemaB>(`/temas/${id}`, b) : await api.post<TemaB>('/temas', b)),
     invalida: [K.temas, K.periodos],
     exito: (_t, v) => (v.id ? 'Tema actualizado.' : 'Tema registrado como borrador.'),
   })
-}
 
 export type AccionTema = 'publicar' | 'cerrar' | 'retirar'
 
@@ -111,9 +99,8 @@ export type AccionTema = 'publicar' | 'cerrar' | 'retirar'
  * RF-21 / RF-25. `publicar` publica un BORRADOR o reabre un tema CERRADO; `cerrar` y
  * `retirar` exigen motivo y el backend rechaza las postulaciones abiertas del tema.
  */
-export const useAccionTema = () => {
-  const { periodoId } = usePeriodo()
-  return useMutacion({
+export const useAccionTema = () =>
+  useMutacion({
     fn: async ({
       id,
       accion,
@@ -127,7 +114,7 @@ export const useAccionTema = () => {
     }) =>
       tema(
         await api.post<TemaB>(
-          `/periodos/${periodoId}/temas/${id}/${accion}`,
+          `/temas/${id}/${accion}`,
           accion === 'publicar' ? {} : { motivo: motivo?.trim() ?? '' },
         ),
       ),
@@ -140,16 +127,15 @@ export const useAccionTema = () => {
         retirar: 'Tema retirado. Sus postulaciones abiertas fueron rechazadas.',
       })[v.accion],
   })
-}
 
-/** RF-37: temas propuestos por el docente con sus postulaciones. */
+/** RF-37: temas propuestos por el docente (banco) con sus postulaciones del período. */
 export const useMisTemas = (periodoId?: string) =>
   useQuery({
     queryKey: [...K.me, 'temas', periodoId],
     queryFn: async (): Promise<(Tema & { postulaciones: Postulacion[] })[]> => {
       // el backend ya limita ambos listados a los temas propios del docente
       const [temas, postulaciones] = await Promise.all([
-        listarTemas(periodoId!),
+        listarTemas({ periodoId }),
         api.todas<PostulacionB>(`/periodos/${periodoId}/postulaciones`),
       ])
       return temas.map((t) => ({

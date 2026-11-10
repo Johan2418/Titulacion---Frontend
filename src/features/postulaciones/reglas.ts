@@ -97,8 +97,8 @@ export function verificarPostulacion(c: ContextoPostulacion): Verificacion[] {
   }
   v.push({
     id: 'rango',
-    ok: n >= c.tema.minIntegrantes && n <= c.tema.maxIntegrantes,
-    mensaje: `El número de integrantes (${n}) está entre ${c.tema.minIntegrantes} y ${c.tema.maxIntegrantes}.`,
+    ok: n >= c.tema.minIntegrantes && n <= (c.tema.maxIntegrantes ?? c.tema.minIntegrantes),
+    mensaje: `El número de integrantes (${n}) está entre ${c.tema.minIntegrantes} y ${c.tema.maxIntegrantes ?? c.tema.minIntegrantes}.`,
     regla: 'RN-05',
   })
   return v
@@ -118,4 +118,15 @@ export function moverElemento<T>(lista: T[], desde: number, hasta: number): T[] 
   const [x] = copia.splice(desde, 1)
   copia.splice(hasta, 0, x)
   return copia
+}
+
+/** Topic filter options: the distinct topics present in the period applications, sorted by title. */
+export function opcionesTemas(
+  postulaciones: { tema: { id: string; titulo: string } }[] | undefined,
+) {
+  const temas = new Map<string, string>()
+  for (const p of postulaciones ?? []) temas.set(p.tema.id, p.tema.titulo)
+  return [...temas]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'es'))
 }
