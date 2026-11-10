@@ -29,7 +29,7 @@ Se usa la autenticación propia del backend (correo y contraseña, JWT RS256):
 
 - `POST /auth/login` devuelve un token de acceso de 15 minutos, que el front guarda **solo en memoria**, y una cookie `HttpOnly` de renovación.
 - Antes de que el token venza, o ante un `401`, el front llama a `GET /auth/csrf` y `POST /auth/refresh` con la cabecera `X-CSRF-Token`. Al recargar la página la sesión se recupera de la misma forma.
-- Si la cuenta tiene una clave temporal (`requiere_cambio_clave`), la pantalla de ingreso pide definir la contraseña personal (`POST /auth/change-initial-password`, 15 a 128 caracteres) e ingresa con ella.
+- Si la cuenta tiene una clave temporal (`requiere_cambio_clave`), la pantalla de ingreso pide definir la contraseña personal (`POST /auth/change-initial-password`, 8 a 128 caracteres) e ingresa con ella.
 - "¿Olvidó su contraseña?" usa `POST /auth/forgot-password` y `POST /auth/reset-password`.
 - El perfil se arma con `GET /usuarios/me` más `GET /estudiantes/me` o `GET /docentes/me` según el rol.
 
