@@ -9,6 +9,11 @@ export function nombreCompleto(p?: { nombres: string; apellidos: string } | null
   return p ? `${p.nombres} ${p.apellidos}` : '—'
 }
 
+/** Lowercase, trimmed and without accents, for case- and accent-insensitive searches. */
+export function normalizarTexto(texto: string) {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+
 export function formatoBytes(bytes?: number | null) {
   if (bytes == null) return '—'
   if (bytes < 1024) return `${bytes} B`

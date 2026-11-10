@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { LockIcon, LogOutIcon, MailIcon, SendIcon, UsersIcon } from 'lucide-react'
 import { useUsuario } from '@/auth/AuthProvider'
-import { Campo, SelectSimple } from '@/components/Campo'
+import { Campo } from '@/components/Campo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -32,7 +32,7 @@ import { esRepresentante } from '@/features/postulaciones/reglas'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { formatFechaHora } from '@/lib/fechas'
 import { ESTADO_GRUPO, ESTADO_INTEGRANTE, ESTADO_INVITACION, ROL_EN_GRUPO } from '@/lib/estados'
-import { nombreCompleto } from '@/lib/utils'
+import { cn, nombreCompleto, normalizarTexto } from '@/lib/utils'
 import type { Grupo } from '@/types/dominio'
 
 function InvitacionesRecibidas() {
@@ -141,6 +141,7 @@ function CrearGrupo({ periodoId }: { periodoId: string }) {
 function Invitar({ grupo }: { grupo: Grupo }) {
   const { periodoId } = usePeriodo()
   const [destino, setDestino] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const candidatos = useHabilitados(periodoId, { sinGrupo: true })
   const invitar = useInvitar()
   const enviadas = useInvitacionesGrupo(grupo.id)
@@ -148,6 +149,14 @@ function Invitar({ grupo }: { grupo: Grupo }) {
   const pendientes = new Set(
     (enviadas.data ?? []).filter((i) => i.estado === 'PENDIENTE').map((i) => i.destino.id),
   )
+  const todos = candidatos.data ?? []
+  const texto = normalizarTexto(busqueda)
+  const filtrados = texto
+    ? todos.filter(({ estudiante: e }) =>
+        normalizarTexto(`${e.nombres} ${e.apellidos} ${e.matricula}`).includes(texto),
+      )
+    : todos
+  const seleccionado = todos.find((h) => h.estudiante.id === destino)?.estudiante
 
   return (
     <Card>
@@ -160,30 +169,76 @@ function Invitar({ grupo }: { grupo: Grupo }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {!grupo.composicionCerrada && (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <SelectSimple
-              aria-label="Estudiante a invitar"
+          <div className="space-y-2">
+            <Input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre o matrícula"
+              aria-label="Buscar por nombre o matrícula"
+              aria-controls="candidatos-invitacion"
               className="sm:w-96"
-              value={destino}
-              onChange={setDestino}
-              placeholder={candidatos.isPending ? 'Cargando…' : 'Seleccione un estudiante…'}
-              opciones={(candidatos.data ?? []).map((h) => ({
-                value: h.estudiante.id,
-                label: `${nombreCompleto(h.estudiante)} · ${h.estudiante.matricula}`,
-                disabled: pendientes.has(h.estudiante.id),
-              }))}
             />
-            <Button
-              disabled={!destino || invitar.isPending}
-              onClick={() =>
-                invitar.mutate(
-                  { grupoId: grupo.id, estudianteId: destino },
-                  { onSuccess: () => setDestino('') },
-                )
-              }
-            >
-              <SendIcon /> Invitar
-            </Button>
+            {candidatos.isPending ? (
+              <p className="text-sm text-muted-foreground">Cargando…</p>
+            ) : candidatos.isError ? (
+              <p className="text-sm text-destructive">No se pudieron cargar los estudiantes.</p>
+            ) : filtrados.length === 0 ? (
+              <p id="candidatos-invitacion" role="status" className="text-sm text-muted-foreground">
+                {todos.length === 0
+                  ? 'No hay estudiantes disponibles para invitar.'
+                  : 'Ningún estudiante coincide con la búsqueda.'}
+              </p>
+            ) : (
+              <ul
+                id="candidatos-invitacion"
+                aria-label="Estudiante a invitar"
+                className="max-h-64 divide-y overflow-y-auto rounded-md border sm:w-96"
+              >
+                {filtrados.map(({ estudiante: e }) => {
+                  const pendiente = pendientes.has(e.id)
+                  const elegido = destino === e.id
+                  return (
+                    <li key={e.id}>
+                      <button
+                        type="button"
+                        aria-pressed={elegido}
+                        disabled={pendiente}
+                        onClick={() => setDestino(e.id)}
+                        className={cn(
+                          'flex w-full flex-col items-start px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+                          elegido && 'bg-accent ring-1 ring-primary ring-inset',
+                        )}
+                      >
+                        <span className="font-medium">{nombreCompleto(e)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {e.matricula}
+                          {pendiente && ' · Invitación pendiente'}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button
+                disabled={!destino || invitar.isPending}
+                onClick={() =>
+                  invitar.mutate(
+                    { grupoId: grupo.id, estudianteId: destino },
+                    { onSuccess: () => setDestino('') },
+                  )
+                }
+              >
+                <SendIcon /> Invitar
+              </Button>
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                {seleccionado
+                  ? `Seleccionado: ${nombreCompleto(seleccionado)} · ${seleccionado.matricula}`
+                  : 'Selecciona un estudiante de la lista.'}
+              </p>
+            </div>
           </div>
         )}
         <ConsultaEstado query={enviadas}>
