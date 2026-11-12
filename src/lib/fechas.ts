@@ -16,12 +16,36 @@ const fmtFechaHora = new Intl.DateTimeFormat('es-EC', {
   minute: '2-digit',
 })
 
-export function formatFecha(iso?: string | null) {
-  return iso ? fmtFecha.format(new Date(iso)) : '—'
+/**
+ * Fechas sin hora (`YYYY-MM-DD`, p. ej. la vigencia de las plantillas PAT). `new Date('2026-11-10')`
+ * las interpreta como medianoche UTC, que en America/Guayaquil (UTC-5) es el día anterior; por eso
+ * se formatean como fecha de calendario, sin conversión de zona.
+ */
+const SOLO_FECHA = /^(\d{4})-(\d{2})-(\d{2})$/
+const fmtSoloFecha = new Intl.DateTimeFormat('es-EC', {
+  timeZone: 'UTC',
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+})
+
+function formatSoloFecha(valor: string) {
+  const partes = SOLO_FECHA.exec(valor)
+  if (!partes) return null
+  const [, anio, mes, dia] = partes
+  // Mediodía UTC: el mismo día de calendario en cualquier zona, formateado en UTC.
+  return fmtSoloFecha.format(new Date(Date.UTC(Number(anio), Number(mes) - 1, Number(dia), 12)))
 }
 
+export function formatFecha(iso?: string | null) {
+  if (!iso) return '—'
+  return formatSoloFecha(iso) ?? fmtFecha.format(new Date(iso))
+}
+
+/** Un valor sin hora se muestra solo como fecha: no tiene una hora real que mostrar. */
 export function formatFechaHora(iso?: string | null) {
-  return iso ? fmtFechaHora.format(new Date(iso)) : '—'
+  if (!iso) return '—'
+  return formatSoloFecha(iso) ?? fmtFechaHora.format(new Date(iso))
 }
 
 /** Convierte un ISO a valor para <input type="datetime-local"> en la zona institucional. */
