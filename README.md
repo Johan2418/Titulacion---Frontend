@@ -45,11 +45,14 @@ El detalle de la correspondencia y de las funciones que el backend aún no ofrec
 
 ## Variables de entorno
 
-| Variable           | Descripción                                             | Por defecto             |
-| ------------------ | ------------------------------------------------------- | ----------------------- |
-| `VITE_API_URL`     | URL base de la API REST que usa el navegador            | `/api/v1`               |
-| `VITE_BACKEND_URL` | Solo desarrollo: backend al que Vite redirige `/api/v1` | `http://127.0.0.1:3000` |
-| `VITE_TIMEZONE`    | Zona horaria institucional para mostrar fechas (RNF-30) | `America/Guayaquil`     |
+| Variable               | Descripción                                             | Por defecto             |
+| ---------------------- | ------------------------------------------------------- | ----------------------- |
+| `VITE_API_URL`         | URL base de la API REST que usa el navegador            | `/api/v1`               |
+| `VITE_BACKEND_URL`     | Solo desarrollo: backend al que Vite redirige `/api/v1` | `http://127.0.0.1:3000` |
+| `VITE_TIMEZONE`        | Zona horaria institucional para mostrar fechas (RNF-30) | `America/Guayaquil`     |
+| `VITE_STORAGE_ORIGINS` | Orígenes permitidos para descargas prefirmadas (coma)   | vacío: cualquier https  |
+
+En producción defina `VITE_STORAGE_ORIGINS` (variable de compilación) con el origen real del almacenamiento: vacía, `src/api/mutacion.ts` acepta cualquier origen `https:` para las descargas prefirmadas.
 
 ## Scripts
 
@@ -102,3 +105,10 @@ docker run -p 8080:8080 -e BACKEND_URL=http://backend:3000 titulacion-frontend
 ```
 
 Nginx sirve la SPA con _fallback_ a `index.html`, cabeceras de seguridad y caché inmutable para `/assets`, y redirige `/api/v1/` al backend indicado en `BACKEND_URL` (mismo origen, sin CORS). En producción, agregue el origen público del frontend a `AUTH_ORIGINS` del backend.
+
+Variables de ejecución del contenedor (Nginx): `BACKEND_URL`; `TRUSTED_PROXY_CIDR` (CIDR del balanceador que termina TLS, para tomar la IP real de `X-Forwarded-For`; vacío si se expone directamente); límites por IP, holgados porque un campus puede compartir IP por NAT: `RATE_LIMIT_AUTH` (`20r/s`), `RATE_LIMIT_AUTH_BURST` (`40`), `RATE_LIMIT_API` (`100r/s`), `RATE_LIMIT_API_BURST` (`200`) `LIMIT_CONN_PER_IP` (`100`) y `LIMIT_CONN_UPLOAD_PER_IP` (`10`, conexiones simultáneas por IP a las rutas de subida de archivos: plantillas y entregas PAT e importaciones XLSX; el límite por usuario lo aplica el backend). La imagen corre sin privilegios (`nginx-unprivileged`).
+
+Desviaciones deliberadas respecto al plan de endurecimiento:
+
+- Las tasas por defecto (`20r/s` con ráfaga `40` para auth y `100r/s` con ráfaga `200` para el API) son mayores que las `5r/s` y `30r/s` propuestas inicialmente, porque el límite es por IP de cliente y un campus o laboratorio completo puede salir por una misma dirección NAT. Los límites por cuenta y por dispositivo los aplica el backend. Los operadores pueden reducirlas con las variables anteriores.
+- `src/api/client.ts` no aplica percent-encoding a cada segmento: valida la ruta y rechaza `?`, `#`, `\`, caracteres de control, `/`, `\` y `.` codificados (`%2f`, `%5c`, `%2e`) y cualquier ruta cuyo `pathname` normalizado difiera de la entrada. Los parámetros de ruta de las páginas se validan como UUID con `src/lib/useUuidParam.ts` antes de llegar a la API.
