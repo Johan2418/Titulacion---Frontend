@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCierreInactividad } from '@/auth/useCierreInactividad'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import {
   GraduationCapIcon,
@@ -107,7 +108,8 @@ function SelectorPeriodo() {
 
 export function AppShell() {
   const usuario = useUsuario()
-  const { cerrarSesion } = useAuth()
+  const { cerrarSesion, cerrarSesionLocal } = useAuth()
+  useCierreInactividad(() => void cerrarSesion(), cerrarSesionLocal)
   const { oscuro, alternar } = useTema()
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [cambiandoClave, setCambiandoClave] = useState(false)
