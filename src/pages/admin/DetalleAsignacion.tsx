@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
+import NoEncontrado from '@/pages/comun/NoEncontrado'
+import { useUuidParam } from '@/lib/useUuidParam'
 import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, StarIcon, UserCheckIcon } from 'lucide-react'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
@@ -277,7 +279,11 @@ function AnularAsignacion({ asignacion }: { asignacion: AsignacionTema }) {
 }
 
 export default function DetalleAsignacion() {
-  const { id } = useParams()
+  const id = useUuidParam()
+  return id ? <DetalleAsignacionContenido id={id} /> : <NoEncontrado />
+}
+
+function DetalleAsignacionContenido({ id }: { id: string }) {
   const query = useAsignacion(id)
   const historial = useHistorialTutores(id)
   const documentos = useDocumentosPat(id)

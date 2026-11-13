@@ -13,6 +13,7 @@ import {
   salir,
   tokenActual,
 } from './backend'
+import { avisarSesionCerrada } from './useCierreInactividad'
 import { clasificarFalloPerfil, esPerfilCompleto, type FalloPerfil } from './sesion'
 
 export type EstadoSesion =
@@ -40,6 +41,8 @@ interface AuthContexto {
    */
   cambiarClave: (actual: string, nueva: string) => Promise<void>
   cerrarSesion: () => Promise<void>
+  /** Limpia la sesión de esta pestaña sin llamar al servidor (otra pestaña ya la cerró). */
+  cerrarSesionLocal: () => void
   /** Vuelve a consultar el perfil (p. ej. tras un 503). */
   reintentar: () => Promise<void>
 }
@@ -148,7 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await cargarPerfil()
   }, [cargarPerfil])
 
+  const cerrarSesionLocal = useCallback(() => {
+    descartarToken()
+    queryClient.clear()
+    setUsuario(null)
+    setAviso(null)
+    setEmailPrimerAcceso(null)
+    setEstado('anonimo')
+  }, [queryClient])
+
   const cerrarSesion = useCallback(async () => {
+    avisarSesionCerrada()
     queryClient.clear()
     setUsuario(null)
     setAviso(null)
@@ -166,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cambiarClaveInicial,
       cambiarClave,
       cerrarSesion,
+      cerrarSesionLocal,
       reintentar,
     }),
     [
@@ -176,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cambiarClaveInicial,
       cambiarClave,
       cerrarSesion,
+      cerrarSesionLocal,
       reintentar,
     ],
   )

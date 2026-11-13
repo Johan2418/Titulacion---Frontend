@@ -71,11 +71,17 @@ export async function descargarDocumentoPat(
   descargarUrl(r.url, doc.nombreArchivo)
 }
 
-const listarDocumentos = async (periodoId: string, asignacionId: string) =>
+/**
+ * Un exintegrante del grupo recibe 404 en las rutas de la asignación (ya no le pertenece):
+ * se trata como "sin documentos" para que la página muestre su estado vacío y no un error.
+ */
+export const listarDocumentos = async (periodoId: string, asignacionId: string) =>
   (
-    await api.todas<DocumentoPatB>(
-      `/periodos/${periodoId}/asignaciones-tema/${asignacionId}/documentos-pat`,
-    )
+    (await oNulo(
+      api.todas<DocumentoPatB>(
+        `/periodos/${periodoId}/asignaciones-tema/${asignacionId}/documentos-pat`,
+      ),
+    )) ?? []
   )
     .map(documentoPat)
     .sort((a, b) => b.version - a.version)

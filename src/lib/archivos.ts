@@ -30,3 +30,7 @@ export function validarArchivo(archivo: File | null | undefined, reglas: ReglasA
     return `El archivo supera el tamaño máximo permitido (${Math.round(reglas.maxBytes / 1024 / 1024)} MB).`
   return null
 }
+
+/** El servidor rechaza (400) documentos con contenido activo; se avisa antes de cargar. */
+export const AVISO_CONTENIDO_ACTIVO =
+  'No se aceptan documentos con macros, objetos incrustados (por ejemplo, gráficos nativos de Word) ni vínculos externos que no sean enlaces web simples. Si tu archivo los incluye, expórtalo a PDF o pega los gráficos como imágenes.'

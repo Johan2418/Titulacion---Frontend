@@ -309,7 +309,7 @@ export default function Habilitados() {
     {
       header: 'Estudiante',
       accessorFn: (h) =>
-        `${nombreCompleto(h.estudiante)} ${h.estudiante.cedula} ${h.estudiante.matricula}`,
+        `${nombreCompleto(h.estudiante)} ${h.estudiante.cedula} ${h.estudiante.matricula ?? ''}`,
       cell: ({ row }) => (
         <span>
           <span className="block font-medium">{nombreCompleto(row.original.estudiante)}</span>

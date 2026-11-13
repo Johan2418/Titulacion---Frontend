@@ -9,6 +9,7 @@ import type {
   AsignacionTema,
   AsignacionTutor,
   CargaDocente,
+  CandidatoInvitacion,
   CarreraResumen,
   ConfigCargaTutorial,
   Docente,
@@ -280,7 +281,19 @@ export const persona = (p: PersonaB | null | undefined): PersonaResumen => ({
 export const estudianteResumen = (p: PersonaB): EstudianteResumen => ({
   ...persona(p),
   cedula: '',
-  matricula: p.matricula ?? '',
+  matricula: p.matricula,
+})
+
+/** Compañero invitable: el backend solo entrega id y nombre (sin matrícula ni condición de ingreso). */
+export interface CandidatoInvitacionB {
+  id: UUID
+  estudiante: PersonaB
+}
+
+export const candidatoInvitacion = (c: CandidatoInvitacionB): CandidatoInvitacion => ({
+  id: c.estudiante.id,
+  nombres: c.estudiante.nombres,
+  apellidos: c.estudiante.apellidos,
 })
 
 export const docenteResumen = (p: PersonaB): DocenteResumen => ({ ...persona(p), cedula: '' })

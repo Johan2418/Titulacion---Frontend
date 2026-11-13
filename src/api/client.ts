@@ -66,10 +66,29 @@ export function configurarCliente(opts: {
   if (opts.renovarSesion) renovarSesion = opts.renovarSesion
 }
 
+export const CODIGO_RUTA_INVALIDA = 'RUTA_INVALIDA'
+
+/** Caracteres que no pueden aparecer en una ruta: `?`, `#`, `\`, controles y `%` que decodifica a `/`, `\` o `.`. */
+// eslint-disable-next-line no-control-regex
+const CARACTERES_PROHIBIDOS = /[?#\\\x00-\x1f\x7f]|%(?:2f|5c|2e)/i
+
+/**
+ * Las rutas se arman con identificadores; si uno trae `../`, `?` o similares podría redirigir la
+ * petición a otro recurso. La ruta debe llegar al servidor exactamente como se escribió.
+ */
 function construirUrl(path: string, query?: Query) {
+  const rutaInvalida = () =>
+    new ApiError({
+      statusCode: 0,
+      code: CODIGO_RUTA_INVALIDA,
+      message: 'La dirección solicitada no es válida.',
+    })
+  if (CARACTERES_PROHIBIDOS.test(path)) throw rutaInvalida()
   const base = env.apiUrl.replace(/\/$/, '')
   const origen = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
   const url = new URL(`${base}${path}`, origen)
+  const rutaBase = new URL(`${base}/`, origen).pathname.replace(/\/$/, '')
+  if (url.pathname !== `${rutaBase}${path}`) throw rutaInvalida()
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(claveASnake(k), String(v))
@@ -102,9 +121,10 @@ async function solicitar<T>(
     body = JSON.stringify(clavesASnake(opts.body))
   }
 
+  const urlSolicitud = construirUrl(path, opts.query)
   let res: Response
   try {
-    res = await fetch(construirUrl(path, opts.query), {
+    res = await fetch(urlSolicitud, {
       method: metodo,
       headers,
       body,

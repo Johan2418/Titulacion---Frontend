@@ -4,6 +4,8 @@ import {
   auditoria,
   docente,
   docenteDisponible,
+  candidatoInvitacion,
+  estudianteResumen,
   habilitado,
   loteImportacion,
   postulacion,
@@ -271,5 +273,25 @@ describe('asignacionTema', () => {
       nombres: 'Bea',
       apellidos: 'Admin',
     })
+  })
+})
+
+describe('matrícula opcional (backend endurecido)', () => {
+  it('estudianteResumen no inventa matrícula cuando el backend la omite', () => {
+    const r = estudianteResumen({ id: 'e1', nombres: 'Ana', apellidos: 'Pérez' })
+    expect(r.matricula).toBeUndefined()
+  })
+
+  it('estudianteResumen conserva la matrícula cuando llega (ADMIN o el propio estudiante)', () => {
+    const r = estudianteResumen({ id: 'e1', nombres: 'Ana', apellidos: 'Pérez', matricula: 'M1' })
+    expect(r.matricula).toBe('M1')
+  })
+
+  it('candidatoInvitacion solo expone identificador y nombre', () => {
+    const c = candidatoInvitacion({
+      id: 'h1',
+      estudiante: { id: 'e1', nombres: 'Ana', apellidos: 'Pérez' },
+    })
+    expect(c).toEqual({ id: 'e1', nombres: 'Ana', apellidos: 'Pérez' })
   })
 })

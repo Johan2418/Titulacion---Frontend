@@ -19,7 +19,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { descargarPlantilla, usePlantillas, useSubirPlantilla } from '@/features/pat/api'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { MAX_TAMANO_PAT, TIPOS_PAT } from '@/lib/archivos'
+import { AVISO_CONTENIDO_ACTIVO, MAX_TAMANO_PAT, TIPOS_PAT } from '@/lib/archivos'
 import { mensajeError } from '@/lib/errores'
 import { formatFecha } from '@/lib/fechas'
 import { formatoBytes, nombreCompleto } from '@/lib/utils'
@@ -45,6 +45,7 @@ function SubirPlantilla({ onClose }: { onClose: () => void }) {
         archivo={archivo}
         onChange={setArchivo}
       />
+      <p className="text-xs text-muted-foreground">{AVISO_CONTENIDO_ACTIVO}</p>
       <Campo etiqueta="Versión" requerido>
         {(p) => (
           <Input

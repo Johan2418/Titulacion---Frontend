@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useHabilitados } from '@/features/catalogos/api'
+import { useCandidatosInvitacion } from '@/features/catalogos/api'
 import {
   useCrearGrupo,
   useInvitacionesGrupo,
@@ -28,6 +28,7 @@ import {
   useResponderInvitacion,
   useSalirGrupo,
 } from '@/features/grupos/api'
+import { errorNombreGrupo } from '@/features/grupos/schemas'
 import { esRepresentante } from '@/features/postulaciones/reglas'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { formatFechaHora } from '@/lib/fechas'
@@ -100,7 +101,9 @@ function InvitacionesRecibidas() {
 
 function CrearGrupo({ periodoId }: { periodoId: string }) {
   const [nombre, setNombre] = useState('')
+  const [tocado, setTocado] = useState(false)
   const crear = useCrearGrupo()
+  const error = tocado ? errorNombreGrupo(nombre) : null
   return (
     <Card>
       <CardHeader>
@@ -113,17 +116,25 @@ function CrearGrupo({ periodoId }: { periodoId: string }) {
       <CardContent>
         <form
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
-            crear.mutate({ periodoId, nombre })
+            setTocado(true)
+            if (errorNombreGrupo(nombre)) return
+            crear.mutate({ periodoId, nombre: nombre.trim() })
           }}
         >
-          <Campo etiqueta="Nombre del grupo" className="flex-1 space-y-1.5">
+          <Campo
+            etiqueta="Nombre del grupo"
+            className="flex-1 space-y-1.5"
+            error={error ?? undefined}
+          >
             {(p) => (
               <Input
                 {...p}
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
+                onBlur={() => setTocado(true)}
                 maxLength={120}
                 placeholder="Ej.: Equipo Innovación"
               />
@@ -142,7 +153,7 @@ function Invitar({ grupo }: { grupo: Grupo }) {
   const { periodoId } = usePeriodo()
   const [destino, setDestino] = useState('')
   const [busqueda, setBusqueda] = useState('')
-  const candidatos = useHabilitados(periodoId, { sinGrupo: true })
+  const candidatos = useCandidatosInvitacion(periodoId)
   const invitar = useInvitar()
   const enviadas = useInvitacionesGrupo(grupo.id)
   const responder = useResponderInvitacion()
@@ -152,11 +163,9 @@ function Invitar({ grupo }: { grupo: Grupo }) {
   const todos = candidatos.data ?? []
   const texto = normalizarTexto(busqueda)
   const filtrados = texto
-    ? todos.filter(({ estudiante: e }) =>
-        normalizarTexto(`${e.nombres} ${e.apellidos} ${e.matricula}`).includes(texto),
-      )
+    ? todos.filter((e) => normalizarTexto(`${e.nombres} ${e.apellidos}`).includes(texto))
     : todos
-  const seleccionado = todos.find((h) => h.estudiante.id === destino)?.estudiante
+  const seleccionado = todos.find((e) => e.id === destino)
 
   return (
     <Card>
@@ -174,8 +183,8 @@ function Invitar({ grupo }: { grupo: Grupo }) {
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o matrícula"
-              aria-label="Buscar por nombre o matrícula"
+              placeholder="Buscar por nombre"
+              aria-label="Buscar por nombre"
               aria-controls="candidatos-invitacion"
               className="sm:w-96"
             />
@@ -195,7 +204,7 @@ function Invitar({ grupo }: { grupo: Grupo }) {
                 aria-label="Estudiante a invitar"
                 className="max-h-64 divide-y overflow-y-auto rounded-md border sm:w-96"
               >
-                {filtrados.map(({ estudiante: e }) => {
+                {filtrados.map((e) => {
                   const pendiente = pendientes.has(e.id)
                   const elegido = destino === e.id
                   return (
@@ -211,10 +220,11 @@ function Invitar({ grupo }: { grupo: Grupo }) {
                         )}
                       >
                         <span className="font-medium">{nombreCompleto(e)}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {e.matricula}
-                          {pendiente && ' · Invitación pendiente'}
-                        </span>
+                        {pendiente && (
+                          <span className="text-xs text-muted-foreground">
+                            Invitación pendiente
+                          </span>
+                        )}
                       </button>
                     </li>
                   )
@@ -235,7 +245,7 @@ function Invitar({ grupo }: { grupo: Grupo }) {
               </Button>
               <p className="text-sm text-muted-foreground" aria-live="polite">
                 {seleccionado
-                  ? `Seleccionado: ${nombreCompleto(seleccionado)} · ${seleccionado.matricula}`
+                  ? `Seleccionado: ${nombreCompleto(seleccionado)}`
                   : 'Selecciona un estudiante de la lista.'}
               </p>
             </div>
@@ -342,7 +352,6 @@ function DetalleGrupo({ grupo }: { grupo: Grupo }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Integrante</TableHead>
-                <TableHead>Matrícula</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -353,7 +362,6 @@ function DetalleGrupo({ grupo }: { grupo: Grupo }) {
                   <TableCell>
                     <span className="font-medium">{nombreCompleto(i.estudiante)}</span>
                   </TableCell>
-                  <TableCell>{i.estudiante.matricula}</TableCell>
                   <TableCell>
                     <StatusBadge mapa={ROL_EN_GRUPO} valor={i.rolEnGrupo} />
                   </TableCell>

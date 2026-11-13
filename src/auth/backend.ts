@@ -1,4 +1,4 @@
-import { api, oNulo } from '@/api/client'
+import { api, ApiError, oNulo } from '@/api/client'
 import type { SesionUsuario, Usuario } from '@/types/dominio'
 
 /**
@@ -45,20 +45,50 @@ async function cabeceraCsrf() {
   return { 'X-CSRF-Token': csrfToken }
 }
 
-/** Renueva el token con la cookie de sesión. Las llamadas concurrentes comparten la misma renovación. */
+const BLOQUEO_RENOVACION = 'titulacion-refresh'
+
+/**
+ * Ejecuta la renovación en exclusiva entre pestañas del mismo navegador (Web Locks): así dos
+ * pestañas nunca presentan a la vez la misma cookie de renovación, que rota en cada uso.
+ * El token vive en memoria por pestaña, por lo que no se puede compartir: solo se serializa.
+ */
+async function enExclusiva<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+  return locks ? await locks.request(BLOQUEO_RENOVACION, fn) : fn()
+}
+
+/**
+ * Renueva el token con la cookie de sesión. Las llamadas concurrentes comparten la misma
+ * renovación y, entre pestañas, se ejecutan de una en una.
+ */
 export function renovar(): Promise<boolean> {
-  renovando ??= (async () => {
+  renovando ??= enExclusiva(async () => {
     try {
-      guardar(await api.post<RespuestaToken>('/auth/refresh', undefined, await cabeceraCsrf()))
+      guardar(await refrescar())
       return true
     } catch {
       descartarToken()
       return false
-    } finally {
-      renovando = null
     }
-  })()
+  }).finally(() => {
+    renovando = null
+  })
   return renovando
+}
+
+const ESPERA_REINTENTO_MS = 300
+
+/** CSRF y renovación van juntos dentro del mismo bloqueo. Un 409 REFRESH_CONCURRENTE se reintenta una vez. */
+async function refrescar(): Promise<RespuestaToken> {
+  const intento = async () =>
+    api.post<RespuestaToken>('/auth/refresh', undefined, await cabeceraCsrf())
+  try {
+    return await intento()
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 409 && e.code === 'REFRESH_CONCURRENTE')) throw e
+    await new Promise((r) => setTimeout(r, ESPERA_REINTENTO_MS))
+    return intento()
+  }
 }
 
 /** Token vigente para la cabecera Authorization; se renueva poco antes de vencer. */

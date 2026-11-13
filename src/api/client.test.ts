@@ -91,3 +91,34 @@ describe('cliente HTTP', () => {
     await expect(oNulo(api.get('/periodos/p/grupos/me'))).rejects.toBeInstanceOf(ApiError)
   })
 })
+
+describe('seguridad de rutas', () => {
+  const rechazadas = [
+    '/temas/../usuarios',
+    '/temas/..%2Fusuarios',
+    '/temas/..%2fusuarios',
+    '/temas/abc?x=1',
+    '/temas/abc#y',
+    '/temas/%2e%2e/x',
+    '/temas/%2E%2E/x',
+    '/temas/a%5Cb',
+    '/temas/a\b',
+    '/temas/a\nb',
+    '/temas/./x',
+  ]
+  it.each(rechazadas)('rechaza %j sin enviar la petición', async (path) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    await expect(api.get(path)).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'RUTA_INVALIDA',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('permite rutas con UUID', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(respuesta(200, { ok: 1 }))
+    await api.get('/temas/3f2b8a1e-9c4d-4f6a-8b1e-2d3c4b5a6f70/historial', { page: 1 })
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      '/api/v1/temas/3f2b8a1e-9c4d-4f6a-8b1e-2d3c4b5a6f70/historial?page=1',
+    )
+  })
+})
