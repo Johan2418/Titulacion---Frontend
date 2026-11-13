@@ -15,6 +15,7 @@ import { nombreCompleto } from '@/lib/utils'
 import type { Postulacion } from '@/types/dominio'
 import { useCompletarTutores, useTutoresDisponibles } from './api'
 import { moverElemento } from './reglas'
+import { MAX_TUTORES_PROPUESTOS, tutoresPropuestosSchema } from './schemas'
 
 /**
  * Registro único de tutores propuestos para una postulación PENDIENTE que no los tiene (p. ej.
@@ -30,6 +31,8 @@ export function CompletarTutoresDialog({ postulacion }: { postulacion: Postulaci
 
   const porId = new Map((docentes.data ?? []).map((d) => [d.id, d]))
   const disponibles = (docentes.data ?? []).filter((d) => !tutores.includes(d.id))
+  const limite = tutores.length >= MAX_TUTORES_PROPUESTOS
+  const valido = tutoresPropuestosSchema.safeParse(tutores).success
 
   return (
     <Dialog
@@ -97,10 +100,15 @@ export function CompletarTutoresDialog({ postulacion }: { postulacion: Postulaci
             )
           })}
         </ol>
+        <p className="text-xs text-muted-foreground">
+          {tutores.length} de {MAX_TUTORES_PROPUESTOS} tutores propuestos.
+          {limite && ' Quita uno para agregar a otro docente.'}
+        </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <SelectSimple
             aria-label="Docente a agregar"
             className="sm:flex-1"
+            disabled={limite}
             value={agregar}
             onChange={setAgregar}
             placeholder={docentes.isLoading ? 'Cargando docentes…' : 'Seleccione un docente…'}
@@ -111,7 +119,7 @@ export function CompletarTutoresDialog({ postulacion }: { postulacion: Postulaci
           />
           <Button
             variant="outline"
-            disabled={!agregar}
+            disabled={!agregar || limite}
             onClick={() => {
               setTutores([...tutores, agregar])
               setAgregar('')
@@ -125,7 +133,7 @@ export function CompletarTutoresDialog({ postulacion }: { postulacion: Postulaci
             Cancelar
           </Button>
           <Button
-            disabled={tutores.length === 0 || completar.isPending}
+            disabled={!valido || completar.isPending}
             onClick={() =>
               completar.mutate(
                 { id: postulacion.id, tutores },

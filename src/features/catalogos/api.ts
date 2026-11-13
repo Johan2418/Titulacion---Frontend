@@ -1,12 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Pagina } from '@/api/client'
 import {
+  candidatoInvitacion,
   cargaDocente,
   configCarga,
   docente,
   estudiante,
   habilitado,
   loteImportacion,
+  type CandidatoInvitacionB,
   type CargaPeriodoB,
   type ConfigCargaB,
   type DocenteB,
@@ -17,10 +19,10 @@ import {
 } from '@/api/adaptadores'
 import { K } from '@/api/claves'
 import { descargarUrl, useMutacion } from '@/api/mutacion'
-import { useUsuario } from '@/auth/AuthProvider'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { formularioImportacion } from './importacion'
 import type {
+  CandidatoInvitacion,
   CargaDocente,
   ConfigCargaTutorial,
   Docente,
@@ -160,7 +162,7 @@ export const useReenviarAcceso = () =>
 const listarEstudiantes = async () => (await api.todas<EstudianteB>('/estudiantes')).map(estudiante)
 
 const coincide = (e: Estudiante, texto: string) =>
-  `${e.nombres} ${e.apellidos} ${e.cedula} ${e.matricula} ${e.email}`
+  `${e.nombres} ${e.apellidos} ${e.cedula} ${e.matricula ?? ''} ${e.email}`
     .toLowerCase()
     .includes(texto.trim().toLowerCase())
 
@@ -171,22 +173,25 @@ export const useEstudiantes = (texto: string) =>
     select: (es: Estudiante[]) => (texto.trim() ? es.filter((e) => coincide(e, texto)) : es),
   })
 
-export const useHabilitados = (pid?: string, opciones: { sinGrupo?: boolean } = {}) => {
-  const { rol } = useUsuario()
-  return useQuery({
-    queryKey: [...K.habilitados, pid, opciones, rol],
-    queryFn: async (): Promise<EstudianteHabilitado[]> => {
-      // RF-02: el estudiante solo ve a los compañeros que puede invitar
-      if (opciones.sinGrupo && rol === 'ESTUDIANTE')
-        return (
-          await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados/candidatos-invitacion`)
-        ).map(habilitado)
-      // el backend ya incluye correo, cédula, carrera y nivel en cada habilitación (ADMIN)
-      return (await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`)).map(habilitado)
-    },
+/** Habilitados del período (ADMIN): el backend incluye correo, cédula, matrícula, carrera y nivel. */
+export const useHabilitados = (pid?: string) =>
+  useQuery({
+    queryKey: [...K.habilitados, pid],
+    queryFn: async (): Promise<EstudianteHabilitado[]> =>
+      (await api.todas<HabilitadoB>(`/periodos/${pid}/habilitados`)).map(habilitado),
     enabled: !!pid,
   })
-}
+
+/** RF-02: compañeros habilitados y sin grupo que el estudiante puede invitar (solo id y nombre). */
+export const useCandidatosInvitacion = (pid?: string) =>
+  useQuery({
+    queryKey: [...K.habilitados, pid, 'candidatos-invitacion'],
+    queryFn: async (): Promise<CandidatoInvitacion[]> =>
+      (
+        await api.todas<CandidatoInvitacionB>(`/periodos/${pid}/habilitados/candidatos-invitacion`)
+      ).map(candidatoInvitacion),
+    enabled: !!pid,
+  })
 
 export const useHabilitar = (pid?: string) =>
   useMutacion({

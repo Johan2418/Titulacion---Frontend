@@ -26,7 +26,7 @@ import {
   useRevisarPat,
 } from '@/features/pat/api'
 import { HistorialVersionesPat } from '@/features/pat/HistorialVersiones'
-import { revisionSchema, type RevisionForm } from '@/features/pat/schemas'
+import { MAX_OBSERVACIONES_PAT, revisionSchema, type RevisionForm } from '@/features/pat/schemas'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { mensajeError } from '@/lib/errores'
 import { formatFechaHora } from '@/lib/fechas'
@@ -94,7 +94,14 @@ function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
               error={formState.errors.observaciones?.message}
               ayuda="Visibles para el estudiante. Obligatorias al observar o rechazar (RN-12)."
             >
-              {(p) => <Textarea {...p} rows={6} {...register('observaciones')} />}
+              {(p) => (
+                <Textarea
+                  {...p}
+                  rows={6}
+                  maxLength={MAX_OBSERVACIONES_PAT}
+                  {...register('observaciones')}
+                />
+              )}
             </Campo>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>

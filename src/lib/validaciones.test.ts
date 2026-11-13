@@ -39,6 +39,14 @@ describe('periodoSchema (CHECK de fechas)', () => {
   it('acepta fechas ordenadas', () => expect(periodoSchema.safeParse(p).success).toBe(true))
   it('exige la facultad', () =>
     expect(periodoSchema.safeParse({ ...p, facultadId: '' }).success).toBe(false))
+  it('convierte el máximo de integrantes desde texto y valida el rango con mensajes en español', () => {
+    const ok = periodoSchema.safeParse({ ...p, maxIntegrantesDefault: '4' })
+    expect(ok.success && ok.data.maxIntegrantesDefault).toBe(4)
+    const bajo = periodoSchema.safeParse({ ...p, maxIntegrantesDefault: 0 })
+    expect(bajo.error?.issues[0].message).toBe('Debe ser al menos 1.')
+    const alto = periodoSchema.safeParse({ ...p, maxIntegrantesDefault: 11 })
+    expect(alto.error?.issues[0].message).toBe('Máximo 10.')
+  })
   it('rechaza fin de postulación anterior al inicio', () =>
     expect(periodoSchema.safeParse({ ...p, fechaFinPostulacion: '2026-12-01T08:00' }).success).toBe(
       false,

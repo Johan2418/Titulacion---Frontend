@@ -99,7 +99,8 @@ export interface PersonaResumen {
 export interface EstudianteResumen extends PersonaResumen {
   /** id de estudiante (no de usuario) */
   cedula: string
-  matricula: string
+  /** Solo ADMIN y el propio estudiante la reciben (equivale a la cédula): el backend la omite para terceros. */
+  matricula?: string
 }
 export interface DocenteResumen extends PersonaResumen {
   cedula: string | null
@@ -213,6 +214,14 @@ export interface EstudianteHabilitado {
   fechaResolucionIngreso?: ISODate | null
   resueltoPor?: PersonaResumen | null
   observacionIngreso?: string | null
+}
+
+/** Compañero que el estudiante puede invitar: solo nombre (el backend no expone matrícula ni ingreso). */
+export interface CandidatoInvitacion {
+  /** id de estudiante */
+  id: UUID
+  nombres: string
+  apellidos: string
 }
 
 export interface LoteImportacion {

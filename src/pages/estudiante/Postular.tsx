@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import NoEncontrado from '@/pages/comun/NoEncontrado'
+import { useUuidParam } from '@/lib/useUuidParam'
 import {
   ArrowDownIcon,
   ArrowLeftIcon,
@@ -35,6 +37,7 @@ import {
   perteneceAGrupo,
   verificarPostulacion,
 } from '@/features/postulaciones/reglas'
+import { MAX_TUTORES_PROPUESTOS, tutoresPropuestosSchema } from '@/features/postulaciones/schemas'
 import { useSeguimiento } from '@/features/seguimiento/api'
 import { useTema } from '@/features/temas/api'
 import { maxIntegrantes } from '@/features/temas/integrantes'
@@ -45,7 +48,11 @@ const PASOS = ['Modalidad', 'Verificación', 'Tutores propuestos', 'Confirmació
 
 /** Asistente de postulación: RF-04, RF-08, RF-09, RF-10, RF-11. */
 export default function Postular() {
-  const { id } = useParams()
+  const id = useUuidParam()
+  return id ? <PostularContenido id={id} /> : <NoEncontrado />
+}
+
+function PostularContenido({ id }: { id: string }) {
   const navigate = useNavigate()
   const usuario = useUsuario()
   const { periodo, periodoId } = usePeriodo()
@@ -105,6 +112,8 @@ export default function Postular() {
     [t, modalidad, periodo, seguimiento.data, g, estudianteId, postulacionActiva],
   )
   const todoOk = verificaciones.every((v) => v.ok)
+  const errorTutores = tutoresPropuestosSchema.safeParse(tutores).error?.issues[0]?.message ?? null
+  const limiteTutores = tutores.length >= MAX_TUTORES_PROPUESTOS
 
   if (
     tema.isPending ||
@@ -125,7 +134,7 @@ export default function Postular() {
   const integrantes = modalidad === 'GRUPAL' ? integrantesActivos(g) : []
 
   const enviar = () => {
-    if (!modalidad) return
+    if (!modalidad || errorTutores) return
     postular.mutate(
       { temaId: t.id, modalidad, tutores },
       { onSuccess: () => navigate('/estudiante/postulaciones') },
@@ -351,15 +360,22 @@ export default function Postular() {
                   )
                 })}
               </ol>
-              {tutores.length === 0 && (
-                <p className="text-sm text-destructive">Debes proponer al menos un docente.</p>
+              {errorTutores && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errorTutores}
+                </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                {tutores.length} de {MAX_TUTORES_PROPUESTOS} tutores propuestos.
+                {limiteTutores && ' Quita uno para agregar a otro docente.'}
+              </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <SelectSimple
                   aria-label="Docente a agregar"
                   className="sm:w-80"
                   value={agregar}
                   onChange={setAgregar}
+                  disabled={limiteTutores}
                   placeholder="Seleccione un docente habilitado…"
                   opciones={disponibles.map((d) => ({
                     value: d.id,
@@ -368,7 +384,7 @@ export default function Postular() {
                 />
                 <Button
                   variant="outline"
-                  disabled={!agregar}
+                  disabled={!agregar || limiteTutores}
                   onClick={() => {
                     setTutores([...tutores, agregar])
                     setAgregar('')
@@ -424,7 +440,7 @@ export default function Postular() {
               disabled={
                 (paso === 0 && !modalidad) ||
                 (paso === 1 && !todoOk) ||
-                (paso === 2 && tutores.length === 0)
+                (paso === 2 && !!errorTutores)
               }
             >
               Siguiente

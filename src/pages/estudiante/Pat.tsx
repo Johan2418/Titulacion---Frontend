@@ -15,7 +15,7 @@ import {
 } from '@/features/pat/api'
 import { HistorialVersionesPat } from '@/features/pat/HistorialVersiones'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
-import { MAX_TAMANO_PAT, TIPOS_PAT } from '@/lib/archivos'
+import { AVISO_CONTENIDO_ACTIVO, MAX_TAMANO_PAT, TIPOS_PAT } from '@/lib/archivos'
 import { mensajeError } from '@/lib/errores'
 import { nombreCompleto } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -140,6 +140,7 @@ export default function Pat() {
                         ultimo ? `Cargar versión ${ultimo.version + 1}` : 'Cargar PAT (PDF o DOCX)'
                       }
                     />
+                    <p className="text-xs text-muted-foreground">{AVISO_CONTENIDO_ACTIVO}</p>
                     <Button type="submit" disabled={!archivo || subir.isPending}>
                       <UploadIcon /> {subir.isPending ? 'Cargando…' : 'Cargar PAT'}
                     </Button>

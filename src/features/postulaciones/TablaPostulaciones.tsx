@@ -82,7 +82,8 @@ function DetallePostulacion({ p, onClose }: { p: Postulacion; onClose: () => voi
             <ul className="text-muted-foreground">
               {p.integrantes.map((e) => (
                 <li key={e.id}>
-                  {nombreCompleto(e)} · {e.matricula}
+                  {nombreCompleto(e)}
+                  {e.matricula ? ` · ${e.matricula}` : ''}
                 </li>
               ))}
             </ul>
