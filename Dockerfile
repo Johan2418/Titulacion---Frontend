@@ -16,7 +16,7 @@ RUN npm run build
 RUN sed -i 's/\r$//' nginx/25-real-ip.sh nginx/security-headers.conf nginx/proxy-api.conf nginx.conf
 
 # Sin privilegios: corre como usuario `nginx` (no root) y escucha en 8080
-FROM nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
 # La imagen sustituye ${BACKEND_URL} al iniciar (plantillas en /etc/nginx/templates)
 ENV BACKEND_URL=http://backend:3000
 # IP real del cliente detrás de un balanceador de confianza (vacío: exposición directa)
