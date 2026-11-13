@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { env } from '@/lib/env'
 import { mensajeError } from '@/lib/errores'
 import { ApiError } from './client'
 
@@ -39,11 +40,36 @@ export function aFormData(campos: Record<string, string | Blob | boolean | null 
   return fd
 }
 
+const errorDescarga = () =>
+  new ApiError({
+    statusCode: 0,
+    code: 'URL_DESCARGA_INVALIDA',
+    message: 'No se pudo iniciar la descarga: la dirección del archivo no es válida.',
+  })
+const ANFITRIONES_LOCALES = new Set(['localhost', '127.0.0.1'])
+
+/** Descarga solo desde https (http en localhost) y, si se configura, desde orígenes permitidos. */
+function validarUrlDescarga(url: string) {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    throw errorDescarga()
+  }
+  // los blob: generados por la propia página (plantillas XLSX) son del mismo origen
+  if (u.protocol === 'blob:' && u.origin === window.location.origin) return
+  const permitido =
+    u.protocol === 'https:' || (u.protocol === 'http:' && ANFITRIONES_LOCALES.has(u.hostname))
+  if (!permitido) throw errorDescarga()
+  if (env.storageOrigins.length > 0 && !env.storageOrigins.includes(u.origin)) throw errorDescarga()
+}
+
 export function descargarUrl(url: string, nombre?: string) {
+  validarUrlDescarga(url)
   const a = document.createElement('a')
   a.href = url
   if (nombre) a.download = nombre
-  a.rel = 'noopener'
+  a.rel = 'noopener noreferrer'
   a.target = '_blank'
   document.body.appendChild(a)
   a.click()

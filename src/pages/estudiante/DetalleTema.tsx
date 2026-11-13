@@ -1,4 +1,6 @@
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
+import NoEncontrado from '@/pages/comun/NoEncontrado'
+import { useUuidParam } from '@/lib/useUuidParam'
 import { ArrowLeftIcon, SendIcon } from 'lucide-react'
 import { ConsultaEstado } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -17,7 +19,11 @@ import { DisponibilidadTema } from './componentes'
 
 /** RF-06 / RF-07 */
 export default function DetalleTema() {
-  const { id } = useParams()
+  const id = useUuidParam()
+  return id ? <DetalleTemaContenido id={id} /> : <NoEncontrado />
+}
+
+function DetalleTemaContenido({ id }: { id: string }) {
   const query = useTema(id)
   const { periodo, periodoId } = usePeriodo()
   const usuario = useUsuario()

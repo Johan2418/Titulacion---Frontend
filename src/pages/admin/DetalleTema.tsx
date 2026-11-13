@@ -1,4 +1,6 @@
-import { Link, useParams } from 'react-router'
+import { Link } from 'react-router'
+import NoEncontrado from '@/pages/comun/NoEncontrado'
+import { useUuidParam } from '@/lib/useUuidParam'
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -17,7 +19,11 @@ import { ESTADO_TEMA } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 
 export default function DetalleTemaAdmin() {
-  const { id } = useParams()
+  const id = useUuidParam()
+  return id ? <DetalleTemaAdminContenido id={id} /> : <NoEncontrado />
+}
+
+function DetalleTemaAdminContenido({ id }: { id: string }) {
   const tema = useTema(id)
   const historial = useHistorialTema(id)
   // el tema pertenece al banco de su carrera: sus postulaciones se consultan en el período seleccionado
