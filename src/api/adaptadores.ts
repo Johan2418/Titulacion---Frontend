@@ -254,6 +254,8 @@ export interface DocumentoPatB {
   id: UUID
   asignacionTemaId: UUID
   plantillaId: UUID | null
+  estudianteId?: UUID | null
+  generacionId?: UUID | null
   version: number
   nombreArchivo: string
   formato: DocumentoPat['formato']
@@ -585,6 +587,8 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
   id: d.id,
   asignacionTemaId: d.asignacionTemaId,
   plantillaId: d.plantillaId,
+  estudianteId: d.estudianteId,
+  generacionId: d.generacionId,
   version: d.version,
   nombreArchivo: d.nombreArchivo,
   formato: d.formato,

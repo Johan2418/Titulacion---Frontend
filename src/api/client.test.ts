@@ -36,6 +36,17 @@ describe('conversión de claves', () => {
 })
 
 describe('cliente HTTP', () => {
+  it('conserva los campos pendientes informados por el backend', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      respuesta(400, {
+        message: 'Completa los datos',
+        pendientes: ['extension_pat configurada por ADMIN'],
+      }),
+    )
+    const error = await api.post('/pat/generaciones', {}).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).pendientes).toEqual(['extension_pat configurada por ADMIN'])
+  })
   it('descarga binarios sin interpretarlos como JSON', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(new Uint8Array([80, 75, 3, 4]), { status: 200 }),

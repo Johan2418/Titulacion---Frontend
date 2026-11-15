@@ -93,6 +93,14 @@ export const useActualizarPeriodo = () =>
     exito: 'Período actualizado.',
   })
 
+export const useConfigurarSedePat = () =>
+  useMutacion({
+    fn: ({ id, extension }: { id: string; extension: string }) =>
+      api.patch(`/periodos/${id}/datos-formato-pat`, { extension }),
+    invalida: [K.periodos],
+    exito: 'Sede del PAT configurada.',
+  })
+
 /** El backend expone una acción por cada transición del período. */
 const ACCION_ESTADO: Partial<Record<EstadoPeriodo, string>> = {
   POSTULACION_ABIERTA: 'abrir-postulacion',

@@ -47,8 +47,9 @@ async function completar(
   periodoId: string,
   a: AsignacionTemaB,
   tutorVigente: AsignacionTutor | null,
+  patIndividual = true,
 ): Promise<AsignacionTema> {
-  const pat = a.estado === 'VIGENTE' ? await ultimoPat(periodoId, a.id) : null
+  const pat = a.estado === 'VIGENTE' && patIndividual ? await ultimoPat(periodoId, a.id) : null
   return asignacionTema(a, { tutorVigente, estadoPat: pat?.revision ?? null })
 }
 
@@ -66,7 +67,9 @@ export const useAsignaciones = (periodoId?: string, estado?: EstadoAsignacionTem
         tutorias.map((t) => [t.asignacionTemaId, asignacionTutor(t)]),
       )
       return Promise.all(
-        asignaciones.map((a) => completar(periodoId!, a, tutorPorAsignacion.get(a.id) ?? null)),
+        asignaciones.map((a) =>
+          completar(periodoId!, a, tutorPorAsignacion.get(a.id) ?? null, !a.grupo),
+        ),
       )
     },
     enabled: !!periodoId,
@@ -82,7 +85,12 @@ export const useAsignacion = (id?: string) => {
         api.get<AsignacionTemaB>(`/periodos/${periodoId}/asignaciones-tema/${id}`),
         rol === 'ESTUDIANTE' ? Promise.resolve([]) : tutoresDe(periodoId!, id!, rol === 'ADMIN'),
       ])
-      return completar(periodoId!, a, tutores.find((t) => t.estado === 'VIGENTE') ?? null)
+      return completar(
+        periodoId!,
+        a,
+        tutores.find((t) => t.estado === 'VIGENTE') ?? null,
+        rol === 'ESTUDIANTE' || !a.grupo,
+      )
     },
     enabled: !!id && !!periodoId,
   })

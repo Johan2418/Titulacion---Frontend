@@ -112,3 +112,9 @@ Desviaciones deliberadas respecto al plan de endurecimiento:
 
 - Las tasas por defecto (`20r/s` con ráfaga `40` para auth y `100r/s` con ráfaga `200` para el API) son mayores que las `5r/s` y `30r/s` propuestas inicialmente, porque el límite es por IP de cliente y un campus o laboratorio completo puede salir por una misma dirección NAT. Los límites por cuenta y por dispositivo los aplica el backend. Los operadores pueden reducirlas con las variables anteriores.
 - `src/api/client.ts` no aplica percent-encoding a cada segmento: valida la ruta y rechaza `?`, `#`, `\`, caracteres de control, `/`, `\` y `.` codificados (`%2f`, `%5c`, `%2e`) y cualquier ruta cuyo `pathname` normalizado difiera de la entrada. Los parámetros de ruta de las páginas se validan como UUID con `src/lib/useUuidParam.ts` antes de llegar a la API.
+
+## PAT individual
+
+Cada estudiante completa sus datos complementarios y el contenido del PAT en su página de estudiante. Luego solicita la generación, descarga el PDF sin firma y carga su PDF firmado. Las entregas y revisiones son individuales, incluso cuando el trabajo corresponde a un grupo. El administrador debe configurar la sede o extensión desde Períodos antes de generar el PDF.
+
+La generación usa `GET/PATCH /estudiantes/me/datos-pat`, `GET/PATCH /periodos/:id/asignaciones-tema/:id/pat/me` y las rutas `generaciones` anidadas. La entrega multipart incluye `generacion_id` y `archivo` PDF. La bandeja de revisión identifica al estudiante titular de cada documento.

@@ -24,6 +24,7 @@ import {
   useBandejaPat,
   useDocumentosPat,
   useRevisarPat,
+  type FilaBandejaPat,
 } from '@/features/pat/api'
 import { HistorialVersionesPat } from '@/features/pat/HistorialVersiones'
 import { MAX_OBSERVACIONES_PAT, revisionSchema, type RevisionForm } from '@/features/pat/schemas'
@@ -115,7 +116,11 @@ function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
           <div>
             <p className="mb-2 text-sm font-medium">Historial de versiones</p>
             <ConsultaEstado query={anteriores}>
-              {(d) => <HistorialVersionesPat documentos={d} />}
+              {(d) => (
+                <HistorialVersionesPat
+                  documentos={d.filter((v) => v.estudianteId === doc.estudianteId)}
+                />
+              )}
             </ConsultaEstado>
           </div>
         </div>
@@ -127,39 +132,50 @@ function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
 /** RF-31 / RF-32 */
 export default function RevisionPat() {
   const { periodoId } = usePeriodo()
-  const [estado, setEstado] = useState<EstadoDocumentoPat | ''>('PENDIENTE')
+  const [estado, setEstado] = useState<EstadoDocumentoPat | 'SIN_ENTREGA' | ''>('PENDIENTE')
   const query = useBandejaPat(periodoId, estado)
   const [revisando, setRevisando] = useState<DocumentoPat | null>(null)
 
-  const columnas: ColumnDef<DocumentoPat>[] = [
+  const columnas: ColumnDef<FilaBandejaPat>[] = [
     {
       header: 'Tema',
       accessorFn: (d) => d.tema?.titulo,
       cell: ({ row }) => <span className="font-medium">{row.original.tema?.titulo}</span>,
     },
-    { header: 'Estudiante(s)', accessorFn: (d) => d.integrantes?.map(nombreCompleto).join(', ') },
-    { header: 'Versión', accessorKey: 'version' },
+    { header: 'Estudiante', accessorFn: (d) => nombreCompleto(d.estudiante) },
+    { header: 'Versión', accessorFn: (d) => d.documento?.version ?? '—' },
     {
       header: 'Cargado',
-      accessorKey: 'fechaCarga',
-      cell: ({ row }) => formatFechaHora(row.original.fechaCarga),
+      accessorFn: (d) => d.documento?.fechaCarga ?? '',
+      cell: ({ row }) =>
+        row.original.documento ? formatFechaHora(row.original.documento.fechaCarga) : '—',
     },
-    { header: 'Formato', accessorKey: 'formato' },
+    { header: 'Formato', accessorFn: (d) => d.documento?.formato ?? '—' },
     {
       header: 'Estado',
       accessorKey: 'estado',
-      cell: ({ row }) => <StatusBadge mapa={ESTADO_PAT} valor={row.original.estado} />,
+      cell: ({ row }) =>
+        row.original.estado === 'SIN_ENTREGA' ? (
+          'Sin entrega'
+        ) : (
+          <StatusBadge mapa={ESTADO_PAT} valor={row.original.estado} />
+        ),
     },
     {
       id: 'acciones',
       header: () => <span className="sr-only">Acciones</span>,
       cell: ({ row }) =>
-        row.original.estado === 'PENDIENTE' ? (
-          <Button size="sm" onClick={() => setRevisando(row.original)}>
+        row.original.estado === 'PENDIENTE' && row.original.documento ? (
+          <Button size="sm" onClick={() => setRevisando(row.original.documento)}>
             Revisar
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setRevisando(row.original)} disabled>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setRevisando(row.original.documento)}
+            disabled
+          >
             Revisado
           </Button>
         ),
@@ -184,9 +200,9 @@ export default function RevisionPat() {
                 aria-label="Filtrar por estado"
                 className="sm:w-52"
                 value={estado}
-                onChange={(v) => setEstado(v as EstadoDocumentoPat | '')}
+                onChange={(v) => setEstado(v as EstadoDocumentoPat | 'SIN_ENTREGA' | '')}
                 todos="Todos"
-                opciones={opciones(ESTADO_PAT)}
+                opciones={[...opciones(ESTADO_PAT), { value: 'SIN_ENTREGA', label: 'Sin entrega' }]}
               />
             }
             vacio={

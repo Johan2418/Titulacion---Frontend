@@ -15,48 +15,71 @@ import { descargarDocumentoPat } from './api'
 export function HistorialVersionesPat({ documentos }: { documentos: DocumentoPat[] }) {
   const { periodoId } = usePeriodo()
   if (!documentos.length) return <Vacio titulo="Aún no hay versiones cargadas" />
+  const grupos = new Map<string, DocumentoPat[]>()
+  for (const documento of documentos) {
+    const id = documento.estudianteId ?? 'historico'
+    grupos.set(id, [...(grupos.get(id) ?? []), documento])
+  }
   return (
-    <ol className="relative space-y-4 border-l pl-6">
-      {documentos.map((d) => (
-        <li key={d.id} className="relative">
-          <span
-            className="absolute top-1.5 -left-[1.95rem] size-3 rounded-full border-2 border-card bg-primary"
-            aria-hidden
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">Versión {d.version}</p>
-            <StatusBadge mapa={ESTADO_PAT} valor={d.estado} />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                descargarDocumentoPat(periodoId!, d).catch((e) => toast.error(mensajeError(e)))
-              }
-              aria-label={`Descargar versión ${d.version}`}
-            >
-              <DownloadIcon /> {d.nombreArchivo}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {d.formato} · {formatoBytes(d.tamanoBytes)} · cargado el {formatFechaHora(d.fechaCarga)}{' '}
-            por {nombreCompleto(d.cargadoPor)}
-          </p>
-          <p className="truncate font-mono text-[11px] text-muted-foreground" title={d.hashSha256}>
-            SHA-256: {d.hashSha256}
-          </p>
-          {d.revision && (
-            <div className="mt-2 rounded-md border bg-muted/40 p-3 text-sm">
-              <p className="text-xs text-muted-foreground">
-                Revisado por {nombreCompleto(d.revision.revisor)} el{' '}
-                {formatFechaHora(d.revision.fechaRevision)}
-              </p>
-              {d.revision.observaciones && (
-                <p className="mt-1 whitespace-pre-line">{d.revision.observaciones}</p>
-              )}
-            </div>
+    <div className="space-y-6">
+      {[...grupos].map(([id, versiones]) => (
+        <section key={id}>
+          {grupos.size > 1 && (
+            <h3 className="mb-3 font-medium">
+              {id === 'historico'
+                ? 'Documentos históricos'
+                : nombreCompleto(versiones[0].cargadoPor)}
+            </h3>
           )}
-        </li>
+          <ol className="relative space-y-4 border-l pl-6">
+            {versiones.map((d) => (
+              <li key={d.id} className="relative">
+                <span
+                  className="absolute top-1.5 -left-[1.95rem] size-3 rounded-full border-2 border-card bg-primary"
+                  aria-hidden
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">Versión {d.version}</p>
+                  <StatusBadge mapa={ESTADO_PAT} valor={d.estado} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      descargarDocumentoPat(periodoId!, d).catch((e) =>
+                        toast.error(mensajeError(e)),
+                      )
+                    }
+                    aria-label={`Descargar versión ${d.version}`}
+                  >
+                    <DownloadIcon /> {d.nombreArchivo}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {d.formato} · {formatoBytes(d.tamanoBytes)} · cargado el{' '}
+                  {formatFechaHora(d.fechaCarga)} por {nombreCompleto(d.cargadoPor)}
+                </p>
+                <p
+                  className="truncate font-mono text-[11px] text-muted-foreground"
+                  title={d.hashSha256}
+                >
+                  SHA-256: {d.hashSha256}
+                </p>
+                {d.revision && (
+                  <div className="mt-2 rounded-md border bg-muted/40 p-3 text-sm">
+                    <p className="text-xs text-muted-foreground">
+                      Revisado por {nombreCompleto(d.revision.revisor)} el{' '}
+                      {formatFechaHora(d.revision.fechaRevision)}
+                    </p>
+                    {d.revision.observaciones && (
+                      <p className="mt-1 whitespace-pre-line">{d.revision.observaciones}</p>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
       ))}
-    </ol>
+    </div>
   )
 }

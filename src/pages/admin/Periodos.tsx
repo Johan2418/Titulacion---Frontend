@@ -27,6 +27,7 @@ import {
   useCrearPeriodo,
   usePeriodos,
   useResumenPeriodo,
+  useConfigurarSedePat,
 } from '@/features/periodos/api'
 import { facultadBloqueada } from '@/features/periodos/reglas'
 import { periodoSchema, type PeriodoForm } from '@/features/periodos/schemas'
@@ -269,6 +270,39 @@ function IniciarTitulacion({ periodo }: { periodo: PeriodoTitulacion }) {
 }
 
 /** RF-17 */
+function SedePat({ periodo }: { periodo: PeriodoTitulacion }) {
+  const [extension, setExtension] = useState('')
+  const [abierto, setAbierto] = useState(false)
+  const guardar = useConfigurarSedePat()
+  return (
+    <Dialog open={abierto} onOpenChange={setAbierto}>
+      <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
+        Sede PAT
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Sede PAT · {periodo.codigo}</DialogTitle>
+        </DialogHeader>
+        <label>
+          Sede o extensión
+          <Input value={extension} maxLength={150} onChange={(e) => setExtension(e.target.value)} />
+        </label>
+        <Button
+          disabled={!extension.trim() || guardar.isPending}
+          onClick={() =>
+            guardar.mutate(
+              { id: periodo.id, extension: extension.trim() },
+              { onSuccess: () => setAbierto(false) },
+            )
+          }
+        >
+          Guardar
+        </Button>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function Periodos() {
   const query = usePeriodos()
   const cambiar = useCambiarEstadoPeriodo()
@@ -314,6 +348,7 @@ export default function Periodos() {
         const p = row.original
         return (
           <div className="flex flex-wrap justify-end gap-1">
+            {p.estado !== 'ARCHIVADO' && <SedePat periodo={p} />}
             {(SIGUIENTE[p.estado] ?? []).map((s) => {
               if (s.estado === 'EN_CURSO') return <IniciarTitulacion key={s.estado} periodo={p} />
               return (

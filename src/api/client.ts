@@ -11,6 +11,7 @@ export interface ErrorApiBody {
   message: string
   regla?: string
   detalles?: Record<string, unknown> | { campo: string; mensaje: string }[]
+  pendientes?: string[]
 }
 
 export class ApiError extends Error {
@@ -18,6 +19,7 @@ export class ApiError extends Error {
   readonly code: string
   readonly regla?: string
   readonly detalles?: ErrorApiBody['detalles']
+  readonly pendientes?: string[]
 
   constructor(body: ErrorApiBody) {
     super(body.message)
@@ -26,6 +28,7 @@ export class ApiError extends Error {
     this.code = body.code
     this.regla = body.regla
     this.detalles = body.detalles
+    this.pendientes = body.pendientes
   }
 }
 
@@ -165,6 +168,9 @@ async function solicitar<T>(
             message: Array.isArray(d.message) ? d.message.join('. ') : String(d.message),
             regla: d.regla,
             detalles: d.detalles,
+            pendientes: Array.isArray(d.pendientes)
+              ? d.pendientes.filter((p): p is string => typeof p === 'string')
+              : undefined,
           }
         : { statusCode: res.status, code: `HTTP_${res.status}`, message: res.statusText }
     throw new ApiError(cuerpo)

@@ -165,6 +165,7 @@ export interface PeriodoTitulacion {
   facultad: FacultadResumen
   /** Derivado: cantidad de estudiantes CONDICIONADOS con situación PENDIENTE */
   condicionadosPendientes?: number
+  extensionPat?: string | null
 }
 
 export interface Estudiante {
@@ -435,6 +436,8 @@ export interface DocumentoPat {
   id: UUID
   asignacionTemaId: UUID
   plantillaId?: UUID | null
+  estudianteId?: UUID | null
+  generacionId?: UUID | null
   version: number
   nombreArchivo: string
   formato: FormatoPat
