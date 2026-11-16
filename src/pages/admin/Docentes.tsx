@@ -27,7 +27,11 @@ import {
   useReenviarAcceso,
   type DocenteInput,
 } from '@/features/catalogos/api'
-import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
+import {
+  opcionesCarrerasConFacultad,
+  opcionesFacultades,
+  useFacultades,
+} from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -169,6 +173,14 @@ export default function Docentes() {
   const facultades = useFacultades()
   const carreras = opcionesCarrerasConFacultad(facultades.data)
   const [carreraId, setCarreraId] = useState('')
+  const [facultadId, setFacultadId] = useState('')
+  const carrerasVisibles = carreras.filter((c) => !facultadId || c.facultadId === facultadId)
+  const cambiarFacultad = (v: string) => {
+    setFacultadId(v)
+    // una carrera fuera de la facultad elegida deja de ser válida
+    const vigente = carreras.some((c) => c.value === carreraId && (!v || c.facultadId === v))
+    if (!vigente) setCarreraId('')
+  }
   const [editando, setEditando] = useState<Docente | null | 'nuevo'>(null)
   const [importando, setImportando] = useState(false)
 
@@ -261,18 +273,32 @@ export default function Docentes() {
         {(l) => (
           <DataTable
             columnas={columnas}
-            datos={l.filter((d) => !carreraId || d.carrera.id === carreraId)}
+            datos={l.filter(
+              (d) =>
+                (!carreraId || d.carrera.id === carreraId) &&
+                (!facultadId || carrerasVisibles.some((c) => c.value === d.carrera.id)),
+            )}
             etiqueta="Docentes"
             placeholderBusqueda="Buscar por nombre, cédula…"
             filtros={
-              <SelectSimple
-                aria-label="Filtrar por carrera"
-                className="sm:w-72"
-                value={carreraId}
-                onChange={setCarreraId}
-                todos="Todas las carreras"
-                opciones={carreras}
-              />
+              <>
+                <SelectSimple
+                  aria-label="Filtrar por facultad"
+                  className="sm:w-64"
+                  value={facultadId}
+                  onChange={cambiarFacultad}
+                  todos="Todas las facultades"
+                  opciones={opcionesFacultades(facultades.data)}
+                />
+                <SelectSimple
+                  aria-label="Filtrar por carrera"
+                  className="sm:w-72"
+                  value={carreraId}
+                  onChange={setCarreraId}
+                  todos="Todas las carreras"
+                  opciones={carrerasVisibles}
+                />
+              </>
             }
           />
         )}
