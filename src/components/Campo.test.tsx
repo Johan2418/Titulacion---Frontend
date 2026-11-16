@@ -85,6 +85,29 @@ describe('SelectSimple', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('con un valor desconocido muestra el placeholder', () => {
+    render(<SelectSimple value="zzz" onChange={vi.fn()} opciones={opciones} placeholder="Elija" />)
+    expect(screen.getByRole('combobox')).toHaveTextContent('Elija')
+    expect(screen.getByRole('combobox')).toHaveAttribute('data-placeholder')
+  })
+
+  it('dos opciones con la misma etiqueta se eligen con su propio valor', async () => {
+    const onChange = vi.fn()
+    const repetidas = [
+      { value: 'a', label: 'Sistemas' },
+      { value: 'b', label: 'Sistemas' },
+    ]
+    render(<SelectSimple value="" onChange={onChange} opciones={repetidas} />)
+    await abrir()
+    const items = screen.getAllByRole('option', { name: 'Sistemas' })
+    expect(items).toHaveLength(2)
+    await userEvent.click(items[1])
+    expect(onChange).toHaveBeenLastCalledWith('b')
+    await abrir()
+    await userEvent.click(screen.getAllByRole('option', { name: 'Sistemas' })[0])
+    expect(onChange).toHaveBeenLastCalledWith('a')
+  })
+
   it('con disabled no abre la lista', async () => {
     render(<SelectSimple value="" onChange={vi.fn()} opciones={opciones} disabled />)
     expect(screen.getByRole('combobox')).toBeDisabled()

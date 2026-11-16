@@ -33,6 +33,11 @@ import {
   useFacultades,
 } from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
+import {
+  carreraTrasCambiarFacultad,
+  carrerasDeFacultadElegida,
+  facultadPorCarrera,
+} from '@/features/academico/facultadCarrera'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
@@ -174,12 +179,11 @@ export default function Docentes() {
   const carreras = opcionesCarrerasConFacultad(facultades.data)
   const [carreraId, setCarreraId] = useState('')
   const [facultadId, setFacultadId] = useState('')
-  const carrerasVisibles = carreras.filter((c) => !facultadId || c.facultadId === facultadId)
+  const carrerasVisibles = carrerasDeFacultadElegida(carreras, facultadId)
+  const facultadDe = facultadPorCarrera(carreras)
   const cambiarFacultad = (v: string) => {
     setFacultadId(v)
-    // una carrera fuera de la facultad elegida deja de ser válida
-    const vigente = carreras.some((c) => c.value === carreraId && (!v || c.facultadId === v))
-    if (!vigente) setCarreraId('')
+    setCarreraId(carreraTrasCambiarFacultad(carreras, carreraId, v))
   }
   const [editando, setEditando] = useState<Docente | null | 'nuevo'>(null)
   const [importando, setImportando] = useState(false)
@@ -276,7 +280,7 @@ export default function Docentes() {
             datos={l.filter(
               (d) =>
                 (!carreraId || d.carrera.id === carreraId) &&
-                (!facultadId || carrerasVisibles.some((c) => c.value === d.carrera.id)),
+                (!facultadId || facultadDe.get(d.carrera.id) === facultadId),
             )}
             etiqueta="Docentes"
             placeholderBusqueda="Buscar por nombre, cédula…"

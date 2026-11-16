@@ -3,6 +3,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { ESTADO_TEMA, opciones, TIPO_TEMA } from '@/lib/estados'
 import type { EstadoTema, TipoTema } from '@/types/dominio'
+import {
+  carreraTrasCambiarFacultad,
+  carrerasDeFacultadElegida,
+  type OpcionCarreraFacultad,
+} from '@/features/academico/facultadCarrera'
 import type { FiltrosTema } from './api'
 
 export interface FiltrosBanco {
@@ -24,9 +29,8 @@ export const FILTROS_BANCO_INICIALES: FiltrosBanco = {
 }
 
 type Opcion = { value: string; label: string }
-type OpcionCarrera = Opcion & { facultadId?: string }
 
-/** Bank filters → GET /temas filters (no period: the bank spans periods). */
+/** Filtros del banco → filtros de GET /temas (sin período: el banco abarca todos los períodos). */
 export const filtrosTemaDesdeBanco = (f: FiltrosBanco): FiltrosTema => ({
   facultadId: f.facultadId,
   carreraId: f.carreraId,
@@ -36,7 +40,7 @@ export const filtrosTemaDesdeBanco = (f: FiltrosBanco): FiltrosTema => ({
   disponible: f.disponible || undefined,
 })
 
-/** Presentational filters of the topic bank (faculty, career, line, type, state and availability). */
+/** Filtros presentacionales del banco de temas (facultad, carrera, línea, tipo, estado y disponibilidad). */
 export function FiltrosBancoTemas({
   valores,
   onChange,
@@ -48,7 +52,7 @@ export function FiltrosBancoTemas({
   onChange: (valores: FiltrosBanco) => void
   facultades: Opcion[]
   /** Cada carrera indica su facultad para poder acotar la lista al elegir una facultad. */
-  carreras: OpcionCarrera[]
+  carreras: OpcionCarreraFacultad[]
   lineas: Opcion[]
 }) {
   return (
@@ -57,17 +61,13 @@ export function FiltrosBancoTemas({
         aria-label="Filtrar por facultad"
         className="sm:w-64"
         value={valores.facultadId}
-        onChange={(v) => {
-          // una carrera fuera de la facultad elegida deja de ser válida
-          const carreraVigente = carreras.some(
-            (c) => c.value === valores.carreraId && (!v || c.facultadId === v),
-          )
+        onChange={(v) =>
           onChange({
             ...valores,
             facultadId: v,
-            carreraId: carreraVigente ? valores.carreraId : '',
+            carreraId: carreraTrasCambiarFacultad(carreras, valores.carreraId, v),
           })
-        }}
+        }
         todos="Todas las facultades"
         opciones={facultades}
       />
@@ -77,9 +77,7 @@ export function FiltrosBancoTemas({
         value={valores.carreraId}
         onChange={(v) => onChange({ ...valores, carreraId: v })}
         todos="Todas las carreras"
-        opciones={carreras.filter(
-          (c) => !valores.facultadId || c.facultadId === valores.facultadId,
-        )}
+        opciones={carrerasDeFacultadElegida(carreras, valores.facultadId)}
       />
       <SelectSimple
         aria-label="Filtrar por línea"

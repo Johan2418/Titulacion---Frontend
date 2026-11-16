@@ -58,7 +58,11 @@ export const TODOS = '__todos__'
 
 /** Minúsculas y sin diacríticos: "ingenieria" coincide con "Ingeniería". */
 export function normalizarBusqueda(texto: string): string {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
 }
 
 /** Select con búsqueda (combobox) a partir de una lista de opciones. */
