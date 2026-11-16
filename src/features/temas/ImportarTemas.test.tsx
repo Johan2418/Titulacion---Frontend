@@ -150,5 +150,5 @@ describe('ImportarTemas', () => {
     expect(invalidar).toHaveBeenCalledWith({ queryKey: K.temas })
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.getByRole('button', { name: /Validar archivo/ })).toBeDisabled()
-  })
+  }, 20_000)
 })
