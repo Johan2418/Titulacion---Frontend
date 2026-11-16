@@ -16,6 +16,7 @@ import type { DocenteResumen, EstadoTema, Postulacion, Tema, TipoTema } from '@/
 export interface FiltrosTema {
   /** Period context: required for students; sets the GRUPO upper bound. */
   periodoId?: string
+  facultadId?: string
   carreraId?: string
   lineaId?: string
   docenteId?: string
@@ -36,6 +37,7 @@ export type TemaInput = {
 /** Query params of GET /temas (the HTTP client converts keys to snake_case and drops empty values). */
 export const consultaTemas = (f: FiltrosTema = {}) => ({
   periodoId: f.periodoId,
+  facultadId: f.facultadId,
   carreraId: f.carreraId,
   lineaId: f.lineaId,
   docenteProponenteId: f.docenteId,

@@ -26,5 +26,9 @@ export const opcionesCarreras = (carreras: CarreraCatalogo[]) =>
 /** Todas las carreras, rotuladas «Carrera — Facultad» (los docentes no dependen del período). */
 export const opcionesCarrerasConFacultad = (facultades: FacultadCatalogo[] | undefined) =>
   (facultades ?? []).flatMap((f) =>
-    f.carreras.map((c) => ({ value: c.id, label: `${c.nombre} — ${f.nombre}` })),
+    f.carreras.map((c) => ({
+      value: c.id,
+      label: `${c.nombre} — ${f.nombre}`,
+      facultadId: f.id,
+    })),
   )

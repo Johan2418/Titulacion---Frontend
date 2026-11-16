@@ -6,6 +6,7 @@ describe('consultaTemas', () => {
     expect(
       consultaTemas({
         periodoId: 'p',
+        facultadId: 'f',
         carreraId: 'c',
         lineaId: 'l',
         docenteId: 'd',
@@ -15,6 +16,7 @@ describe('consultaTemas', () => {
       }),
     ).toEqual({
       periodoId: 'p',
+      facultadId: 'f',
       carreraId: 'c',
       lineaId: 'l',
       docenteProponenteId: 'd',
@@ -28,6 +30,7 @@ describe('consultaTemas', () => {
     expect(consultaTemas({ disponible: false }).disponible).toBe('false')
     expect(consultaTemas({})).toEqual({
       periodoId: undefined,
+      facultadId: undefined,
       carreraId: undefined,
       lineaId: undefined,
       docenteProponenteId: undefined,

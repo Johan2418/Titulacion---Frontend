@@ -43,6 +43,7 @@ describe('catálogo académico', () => {
     expect(opcionesCarrerasConFacultad(facultades)[1]).toEqual({
       value: 'c-sis',
       label: 'Ingeniería en Sistemas — Facultad Ciencias de la Vida y Tecnologías',
+      facultadId: 'f-vida',
     })
     expect(opcionesCarrerasConFacultad(undefined)).toEqual([])
   })

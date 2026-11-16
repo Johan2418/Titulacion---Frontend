@@ -8,7 +8,11 @@ import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
+import {
+  opcionesCarrerasConFacultad,
+  opcionesFacultades,
+  useFacultades,
+} from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useLineas } from '@/features/catalogos/api'
 import { AccionesTema } from '@/features/temas/AccionesTema'
@@ -108,6 +112,7 @@ export default function Temas() {
               <FiltrosBancoTemas
                 valores={filtros}
                 onChange={setFiltros}
+                facultades={opcionesFacultades(facultades.data)}
                 carreras={opcionesCarrerasConFacultad(facultades.data)}
                 lineas={(lineas.data ?? []).map((x) => ({ value: x.id, label: x.nombre }))}
               />
