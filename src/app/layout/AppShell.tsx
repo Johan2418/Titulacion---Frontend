@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { ConfirmacionObligatoria } from '@/features/postulaciones/ConfirmacionObligatoria'
 import { ESTADO_PERIODO, ROL } from '@/lib/estados'
 import { cn } from '@/lib/utils'
 import { useTema } from '../tema'
@@ -217,6 +218,7 @@ export function AppShell() {
         >
           <Outlet />
         </main>
+        {usuario.rol === 'ESTUDIANTE' && <ConfirmacionObligatoria />}
       </div>
     </div>
   )

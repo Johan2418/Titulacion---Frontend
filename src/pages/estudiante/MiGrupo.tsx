@@ -29,6 +29,8 @@ import {
   useSalirGrupo,
 } from '@/features/grupos/api'
 import { errorNombreGrupo } from '@/features/grupos/schemas'
+import { useMisPostulaciones } from '@/features/postulaciones/api'
+import { EstadoConfirmaciones } from '@/features/postulaciones/EstadoConfirmaciones'
 import { esRepresentante } from '@/features/postulaciones/reglas'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { formatFechaHora } from '@/lib/fechas'
@@ -296,6 +298,27 @@ function Invitar({ grupo }: { grupo: Grupo }) {
   )
 }
 
+/** Bloque 3: mientras el tema está reservado, cada integrante debe confirmarlo. */
+function ReservaPendiente({ grupo }: { grupo: Grupo }) {
+  const postulaciones = useMisPostulaciones(grupo.periodoId)
+  const reserva = postulaciones.data?.find(
+    (p) => p.estado === 'PENDIENTE_CONFIRMACION' && p.grupo?.id === grupo.id,
+  )
+  if (!reserva) return null
+  return (
+    <Alert variant="warning">
+      <AlertTitle>Tema reservado: {reserva.tema.titulo}</AlertTitle>
+      <AlertDescription className="space-y-2">
+        <p>
+          La postulación queda pendiente hasta que todos los integrantes confirmen el tema. Si
+          alguien lo rechaza o la reserva vence, el tema vuelve al banco.
+        </p>
+        <EstadoConfirmaciones confirmaciones={reserva.confirmaciones} venceEn={reserva.venceEn} />
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 function DetalleGrupo({ grupo }: { grupo: Grupo }) {
   const usuario = useUsuario()
   const salir = useSalirGrupo()
@@ -332,6 +355,7 @@ function DetalleGrupo({ grupo }: { grupo: Grupo }) {
           )}
         </CardHeader>
         <CardContent className="space-y-3">
+          <ReservaPendiente grupo={grupo} />
           {grupo.composicionCerrada && (
             <Alert variant="info">
               <LockIcon />

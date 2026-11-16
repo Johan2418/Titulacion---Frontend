@@ -9,6 +9,8 @@ import { useAccionTema, type AccionTema } from './api'
 const DISPONIBLES: Record<Tema['estado'], AccionTema[]> = {
   BORRADOR: ['publicar', 'retirar'],
   PUBLICADO: ['cerrar', 'retirar'],
+  // cerrar o retirar un tema reservado rechaza también las postulaciones por confirmar
+  RESERVADO: ['cerrar', 'retirar'],
   CERRADO: ['publicar', 'retirar'],
   ASIGNADO: [],
   RETIRADO: [],

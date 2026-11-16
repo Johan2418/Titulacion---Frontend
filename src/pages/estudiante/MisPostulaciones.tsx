@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { CompletarTutoresDialog } from '@/features/postulaciones/CompletarTutoresDialog'
+import { EstadoConfirmaciones } from '@/features/postulaciones/EstadoConfirmaciones'
 import { useCancelarPostulacion, useMisPostulaciones } from '@/features/postulaciones/api'
 import { formatFechaHora } from '@/lib/fechas'
 import { ESTADO_POSTULACION, MODALIDAD } from '@/lib/estados'
@@ -42,11 +43,13 @@ export default function MisPostulaciones() {
             <div className="space-y-4">
               {lista.map((p) => {
                 const puedeCancelar =
-                  (p.estado === 'PENDIENTE' || p.estado === 'EN_CONFLICTO') &&
+                  (p.estado === 'PENDIENTE_CONFIRMACION' ||
+                    p.estado === 'PENDIENTE' ||
+                    p.estado === 'EN_CONFLICTO') &&
                   p.registradaPor.id === usuario.id
                 // el backend admite registrar tutores una sola vez, si aún no hay lista y en plazo
                 const puedeCompletarTutores =
-                  p.estado === 'PENDIENTE' &&
+                  (p.estado === 'PENDIENTE' || p.estado === 'PENDIENTE_CONFIRMACION') &&
                   p.tutoresPropuestos.length === 0 &&
                   p.registradaPor.id === usuario.id &&
                   periodo?.estado === 'POSTULACION_ABIERTA'
@@ -71,6 +74,13 @@ export default function MisPostulaciones() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
+                      {p.estado === 'PENDIENTE_CONFIRMACION' && (
+                        <p className="text-amber-700 dark:text-amber-300">
+                          El tema está reservado para tu grupo. Todos los integrantes deben
+                          confirmarlo antes de que venza la reserva; si alguien lo rechaza, el tema
+                          vuelve al banco.
+                        </p>
+                      )}
                       {p.estado === 'EN_CONFLICTO' && (
                         <p className="text-amber-700 dark:text-amber-300">
                           Otra postulación compite por este tema. El responsable de titulación
@@ -86,6 +96,7 @@ export default function MisPostulaciones() {
                           {p.integrantes.map(nombreCompleto).join(', ')}
                         </p>
                       </div>
+                      <EstadoConfirmaciones confirmaciones={p.confirmaciones} venceEn={p.venceEn} />
                       <div>
                         <p className="mb-1 font-medium">Tutores propuestos</p>
                         {p.tutoresPropuestos.length === 0 && (

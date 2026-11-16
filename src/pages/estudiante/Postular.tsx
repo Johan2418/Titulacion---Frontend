@@ -31,6 +31,7 @@ import {
 } from '@/features/postulaciones/api'
 import {
   esRepresentante,
+  HORAS_CONFIRMACION_RESERVA,
   integrantesActivos,
   moverElemento,
   ordenarSugeridos,
@@ -42,7 +43,7 @@ import { useSeguimiento } from '@/features/seguimiento/api'
 import { useTema } from '@/features/temas/api'
 import { maxIntegrantes } from '@/features/temas/integrantes'
 import { cn, nombreCompleto } from '@/lib/utils'
-import type { Modalidad } from '@/types/dominio'
+import { ESTADOS_POSTULACION_ACTIVA, type Modalidad } from '@/types/dominio'
 
 const PASOS = ['Modalidad', 'Verificación', 'Tutores propuestos', 'Confirmación']
 
@@ -95,7 +96,7 @@ function PostularContenido({ id }: { id: string }) {
   }, [t, docentes.data, tutores.length])
 
   const postulacionActiva =
-    mias.data?.find((p) => ['PENDIENTE', 'EN_CONFLICTO', 'ACEPTADA'].includes(p.estado)) ?? null
+    mias.data?.find((p) => ESTADOS_POSTULACION_ACTIVA.includes(p.estado)) ?? null
   const verificaciones = useMemo(
     () =>
       t && modalidad
@@ -426,6 +427,13 @@ function PostularContenido({ id }: { id: string }) {
                   </dd>
                 </div>
               </dl>
+              <Alert variant="info" className="mt-4">
+                <AlertDescription>
+                  {modalidad === 'GRUPAL'
+                    ? `Al enviar, el tema quedará reservado para tu grupo y los demás integrantes deberán confirmarlo en un plazo de ${HORAS_CONFIRMACION_RESERVA} horas. Si alguno lo rechaza o no responde a tiempo, el tema vuelve al banco.`
+                    : 'Al enviar, el tema quedará reservado para ti mientras se resuelve tu postulación.'}
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </>
         )}

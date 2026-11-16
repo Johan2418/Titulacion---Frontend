@@ -27,6 +27,7 @@ import { formatFechaHora } from '@/lib/fechas'
 import { ESTADO_POSTULACION, MODALIDAD } from '@/lib/estados'
 import { nombreCompleto } from '@/lib/utils'
 import type { Postulacion } from '@/types/dominio'
+import { EstadoConfirmaciones } from './EstadoConfirmaciones'
 
 /** RF-26: tutores propuestos con su prioridad e indicando si es el proponente. */
 export function TutoresPropuestos({ postulacion }: { postulacion: Postulacion }) {
@@ -96,6 +97,15 @@ function DetallePostulacion({ p, onClose }: { p: Postulacion; onClose: () => voi
             <TutoresPropuestos postulacion={p} />
           </div>
           {p.observacion && <p className="text-muted-foreground">Observación: {p.observacion}</p>}
+          <EstadoConfirmaciones confirmaciones={p.confirmaciones} venceEn={p.venceEn} />
+          {p.estado === 'PENDIENTE_CONFIRMACION' && (
+            <Alert variant="info">
+              <AlertDescription>
+                El tema está reservado mientras los integrantes confirman. La postulación podrá
+                asignarse cuando todos confirmen y pase a «Pendiente».
+              </AlertDescription>
+            </Alert>
+          )}
           {p.estado === 'EN_CONFLICTO' && (
             <Alert variant="warning">
               <AlertDescription>
