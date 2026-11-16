@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useUsuario } from '@/auth/AuthProvider'
 import { api, ApiError } from '@/api/client'
+import { SelectSimple } from '@/components/Campo'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { FileUpload } from '@/components/FileUpload'
 import { PageHeader } from '@/components/PageHeader'
@@ -133,14 +134,16 @@ function Formularios({ pid, aid }: { pid: string; aid: string }) {
               ))}
               <label className="block text-sm">
                 ¿Tiene discapacidad?{' '}
-                <select
+                <SelectSimple
+                  aria-label="¿Tiene discapacidad?"
                   value={d.tieneDiscapacidad == null ? '' : String(d.tieneDiscapacidad)}
-                  onChange={(e) => editar('tieneDiscapacidad', e.target.value === 'true')}
-                >
-                  <option value="">Seleccione</option>
-                  <option value="true">Sí</option>
-                  <option value="false">No</option>
-                </select>
+                  onChange={(v) => editar('tieneDiscapacidad', v === 'true')}
+                  opciones={[
+                    { value: 'true', label: 'Sí' },
+                    { value: 'false', label: 'No' },
+                  ]}
+                  placeholder="Seleccione"
+                />
               </label>
               {d.tieneDiscapacidad === true && (
                 <div className="space-y-2">
@@ -193,7 +196,7 @@ function Formularios({ pid, aid }: { pid: string; aid: string }) {
                     {
                       ...d,
                       ...(d.correoPersonal === '' ? { correoPersonal: null } : {}),
-                        ...(d.fechaNacimiento === '' ? { fechaNacimiento: undefined } : {}),
+                      ...(d.fechaNacimiento === '' ? { fechaNacimiento: undefined } : {}),
                     },
                     { onSuccess: () => setPersonal(null) },
                   )
@@ -321,16 +324,18 @@ function Entrega({
         {!tieneTutor && (
           <label className="block">
             Tutor propuesto{' '}
-            <select value={tutor} onChange={(e) => setTutor(e.target.value)}>
-              <option value="">Seleccione</option>
-              {postulaciones.data
-                ?.find((p) => p.id === postulacionId)
-                ?.tutoresPropuestos.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.docente.nombres} {t.docente.apellidos}
-                  </option>
-                ))}
-            </select>
+            <SelectSimple
+              aria-label="Tutor propuesto"
+              value={tutor}
+              onChange={setTutor}
+              opciones={(
+                postulaciones.data?.find((p) => p.id === postulacionId)?.tutoresPropuestos ?? []
+              ).map((t) => ({
+                value: t.id,
+                label: `${t.docente.nombres} ${t.docente.apellidos}`,
+              }))}
+              placeholder="Seleccione"
+            />
           </label>
         )}
         <Button
