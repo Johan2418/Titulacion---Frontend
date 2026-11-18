@@ -487,14 +487,20 @@ export default function Habilitados() {
         tipos={TIPOS_XLSX}
         descripcion={
           <>
-            Archivo Excel (.xlsx) con encabezados:{' '}
+            Archivo Excel (.xlsx). Encabezados obligatorios:{' '}
             <code className="text-xs">
-              Identificación, Apellidos, Nombres, nivel, ACADEMICO, INGLES
+              Identificación, Apellidos, Nombres, Nivel Estudiante, ingles, academico
             </code>
-            . Se genera el correo <code className="text-xs">e{'{cédula}'}@live.uleam.edu.ec</code> y
-            la cédula como contraseña temporal. Con SI en ACADEMICO e INGLES el estudiante queda
-            habilitado; con algún NO queda suspendido. Todos los estudiantes del archivo se
-            registran en la carrera elegida, que debe pertenecer a la facultad del período.{' '}
+            . También se acepta <code className="text-xs">nivel</code> en lugar de{' '}
+            <code className="text-xs">Nivel Estudiante</code>; puedes cambiar el orden de las
+            columnas. Se omiten filas incompletas y la lectura termina al encontrar nuevamente los
+            encabezados. Las columnas auxiliares, como Habilitado y Total habilitados, se ignoran.
+            Con SI en ingles y academico el estudiante queda habilitado; con algún NO queda
+            suspendido. Se genera el correo{' '}
+            <code className="text-xs">e{'{cédula}'}@live.uleam.edu.ec</code> y la cédula como
+            contraseña temporal. Todos los estudiantes se registran en la carrera elegida, que debe
+            pertenecer a la facultad del período. Si ya existe la cuenta en esa carrera, la nueva
+            importación actualiza su nivel y conserva la matrícula existente.{' '}
             <Button
               type="button"
               variant="link"

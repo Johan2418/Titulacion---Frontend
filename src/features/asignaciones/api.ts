@@ -107,7 +107,9 @@ export const useMiAsignacion = (periodoId?: string) =>
       const a = asignaciones.find((x) => x.estado === 'VIGENTE') ?? asignaciones[0]
       if (!a) return null
       const tutor = tutorias.find((t) => t.asignacionTemaId === a.id && t.estado === 'VIGENTE')
-      return completar(periodoId!, a, tutor ? asignacionTutor(tutor) : null)
+      // La pantalla PAT consulta el historial individual por estudiante. El endpoint legado
+      // /documentos-pat/ultima devuelve 404 cuando aún no hay entrega y solo cubre grupo completo.
+      return completar(periodoId!, a, tutor ? asignacionTutor(tutor) : null, false)
     },
     enabled: !!periodoId,
   })

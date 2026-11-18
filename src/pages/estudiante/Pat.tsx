@@ -193,7 +193,7 @@ function Formularios({ pid, aid }: { pid: string; aid: string }) {
                     {
                       ...d,
                       ...(d.correoPersonal === '' ? { correoPersonal: null } : {}),
-                        ...(d.fechaNacimiento === '' ? { fechaNacimiento: undefined } : {}),
+                      ...(d.fechaNacimiento === '' ? { fechaNacimiento: undefined } : {}),
                     },
                     { onSuccess: () => setPersonal(null) },
                   )
@@ -349,6 +349,10 @@ function Entrega({
         {solicitar.error instanceof ApiError && !!solicitar.error.pendientes?.length && (
           <p role="alert">Faltan: {solicitar.error.pendientes.map(nombreCampo).join(', ')}.</p>
         )}
+        {solicitar.error &&
+          !(solicitar.error instanceof ApiError && solicitar.error.pendientes?.length) && (
+            <p role="alert">{mensajeError(solicitar.error)}</p>
+          )}
         {id && (
           <div className="space-y-2">
             <p>
