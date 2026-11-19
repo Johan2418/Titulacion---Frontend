@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TriangleAlertIcon } from 'lucide-react'
+import { useAuth } from '@/auth/AuthProvider'
 import { Campo } from '@/components/Campo'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -34,12 +35,29 @@ function Respuesta({
   onRespondida: () => void
 }) {
   const responder = useResponderConfirmacion()
+  const { cerrarSesion } = useAuth()
   const [rechazando, setRechazando] = useState(false)
   const [motivo, setMotivo] = useState('')
   const base = { postulacionId: pendiente.postulacionId }
-  // ante un error (reserva vencida, ya respondida…) el aviso lo muestra la mutación y la lista
-  // se vuelve a consultar para quitar lo que ya no espera respuesta
+  // ante un error se muestra el aviso en el diálogo (con reintento) y la lista se vuelve a
+  // consultar: si la reserva ya no espera respuesta (vencida, ya respondida…) se cierra sola
   const opciones = { onSuccess: onRespondida, onError: onRespondida }
+
+  const errorRespuesta = responder.isError && (
+    <Alert variant="destructive" role="alert">
+      <TriangleAlertIcon aria-hidden />
+      <p className="col-start-2">
+        No se pudo registrar tu respuesta
+        {responder.error?.message ? `: ${responder.error.message}` : ''}. Puedes reintentar o cerrar
+        sesión.
+      </p>
+    </Alert>
+  )
+  const cerrarSesionBtn = (
+    <Button variant="ghost" className="sm:mr-auto" onClick={() => void cerrarSesion()}>
+      Cerrar sesión
+    </Button>
+  )
 
   return (
     <>
@@ -92,7 +110,9 @@ function Respuesta({
               />
             )}
           </Campo>
+          {errorRespuesta}
           <DialogFooter>
+            {cerrarSesionBtn}
             <Button
               variant="outline"
               disabled={responder.isPending}
@@ -110,21 +130,25 @@ function Respuesta({
           </DialogFooter>
         </>
       ) : (
-        <DialogFooter>
-          <Button
-            variant="outline"
-            disabled={responder.isPending}
-            onClick={() => setRechazando(true)}
-          >
-            Rechazar
-          </Button>
-          <Button
-            disabled={responder.isPending}
-            onClick={() => responder.mutate({ ...base, accion: 'confirmar' }, opciones)}
-          >
-            Confirmar tema
-          </Button>
-        </DialogFooter>
+        <>
+          {errorRespuesta}
+          <DialogFooter>
+            {cerrarSesionBtn}
+            <Button
+              variant="outline"
+              disabled={responder.isPending}
+              onClick={() => setRechazando(true)}
+            >
+              Rechazar
+            </Button>
+            <Button
+              disabled={responder.isPending}
+              onClick={() => responder.mutate({ ...base, accion: 'confirmar' }, opciones)}
+            >
+              Confirmar tema
+            </Button>
+          </DialogFooter>
+        </>
       )}
     </>
   )

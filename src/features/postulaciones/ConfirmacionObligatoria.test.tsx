@@ -13,6 +13,9 @@ vi.mock('@/api/client', async (original) => {
   return { ...real, api: { ...real.api, get, post } }
 })
 
+const { cerrarSesion } = vi.hoisted(() => ({ cerrarSesion: vi.fn() }))
+vi.mock('@/auth/AuthProvider', () => ({ useAuth: () => ({ cerrarSesion }) }))
+
 const pendiente: ConfirmacionPendiente = {
   postulacionId: 'po1',
   periodoId: 'p1',
@@ -56,6 +59,7 @@ describe('ConfirmacionObligatoria', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
+    cerrarSesion.mockReset()
   })
 
   it('no muestra nada sin reservas pendientes', async () => {
@@ -117,6 +121,30 @@ describe('ConfirmacionObligatoria', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar tema' }))
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('ante un error 5xx muestra el aviso, mantiene el diálogo y permite reintentar', async () => {
+    get.mockResolvedValue([pendiente])
+    post.mockImplementation(() =>
+      Promise.reject(
+        new ApiError({ statusCode: 503, code: 'HTTP_503', message: 'Servicio caído' }),
+      ),
+    )
+    renderModal()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar tema' }))
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent('No se pudo registrar tu respuesta')
+    expect(aviso).toHaveTextContent('Servicio caído')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar tema' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Rechazar' })).toBeEnabled()
+  })
+
+  it('«Cerrar sesión» dentro del diálogo usa el cierre de sesión de la app', async () => {
+    get.mockResolvedValue([pendiente])
+    renderModal()
+    await userEvent.click(await screen.findByRole('button', { name: 'Cerrar sesión' }))
+    expect(cerrarSesion).toHaveBeenCalledTimes(1)
   })
 })
 
