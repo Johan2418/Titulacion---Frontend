@@ -6,6 +6,7 @@ import type {
   EstadoAsignacionTema,
   EstadoAsignacionTutor,
   EstadoDocumentoPat,
+  OrigenDocumentoPat,
   EstadoExportacion,
   EstadoGrupo,
   EstadoHabilitacion,
@@ -161,6 +162,11 @@ export const ESTADO_PAT: Mapa<EstadoDocumentoPat> = {
   APROBADO: { label: 'Aprobado', tono: 'success' },
   OBSERVADO: { label: 'Observado', tono: 'warning' },
   RECHAZADO: { label: 'Rechazado', tono: 'danger' },
+}
+
+export const ORIGEN_PAT: Mapa<OrigenDocumentoPat> = {
+  GENERADO: { label: 'Generado sin firma', tono: 'info' },
+  FIRMADO: { label: 'Firmado', tono: 'neutral' },
 }
 
 export const ESTADO_EXPORTACION: Mapa<EstadoExportacion> = {
