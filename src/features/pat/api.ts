@@ -117,78 +117,186 @@ export const useSubirPat = (asignacionId?: string) => {
   })
 }
 
-export interface DatosPatB {
-  estudianteId: string
-  identidad: Record<string, unknown> | null
-  datos: Record<string, unknown>
-  pendientes: string[]
+/** Fuente de un valor autocompletado (contrato `GET .../pat/me/resumen`). */
+export interface ValorAutomaticoPat<T> {
+  valor: T
+  fuente: string
 }
-export interface ContenidoPatB {
+export interface TutorPropuestoPatB {
+  id: string
+  ordenPrioridad: number
+  docenteId: string
+  nombres: string
+  apellidos: string
+  elegibleActualmente: boolean
+  esProponenteTema: boolean
+}
+export interface TutorResueltoPat {
+  docenteId: string
+  nombres: string
+  apellidos: string
+  tutorPropuestoId: string | null
+}
+export interface IntegrantePat {
+  id: string
+  nombres: string
+  apellidos: string
+  matricula?: string | null
+}
+/**
+ * Respuesta de `GET .../pat/me/resumen`. Las claves llegan en camelCase (cliente); los valores de
+ * `pendientes` conservan el nombre del backend (p. ej. `correo_personal`).
+ */
+export interface ResumenPatB {
   asignacionTemaId: string
-  contenido: Record<string, unknown>
-  problematicaSugerida: string | null
+  estudianteId: string
+  automaticos: {
+    nombres: ValorAutomaticoPat<string | null>
+    apellidos: ValorAutomaticoPat<string | null>
+    cedula: ValorAutomaticoPat<string | null>
+    matricula: ValorAutomaticoPat<string | null>
+    correoInstitucional: ValorAutomaticoPat<string | null>
+    carrera: ValorAutomaticoPat<string | null>
+    facultad: ValorAutomaticoPat<string | null>
+    periodo: ValorAutomaticoPat<{ codigo: string | null; nombre: string | null } | null>
+    extensionPat: ValorAutomaticoPat<string | null>
+    nivel: ValorAutomaticoPat<number | null>
+    curso: ValorAutomaticoPat<string | null>
+    temaTitulo: ValorAutomaticoPat<string | null>
+    problematicaSugerida: ValorAutomaticoPat<string | null>
+    lineaInvestigacion: ValorAutomaticoPat<{ id: string; codigo: string; nombre: string } | null>
+    articulacionesSugeridas: ValorAutomaticoPat<string[]>
+    modalidad: ValorAutomaticoPat<'INDIVIDUAL' | 'GRUPAL' | null>
+    tipoTema: ValorAutomaticoPat<string | null>
+    integrantes: ValorAutomaticoPat<IntegrantePat[]>
+    modalidadAcademica: ValorAutomaticoPat<string | null>
+    tutor: ValorAutomaticoPat<TutorResueltoPat | null>
+  }
+  editables: {
+    personal: Record<string, unknown>
+    contenido: {
+      problematica: string
+      problematicaPersonalizada: boolean
+      confirmaProblematica: boolean
+      articulaciones: string[]
+      tutorPropuestoId: string | null
+    }
+  }
   pendientes: string[]
+  listoParaGenerar: boolean
+  tutoresPropuestos: {
+    tutorVigente: { docenteId: string; nombres: string; apellidos: string } | null
+    data: TutorPropuestoPatB[]
+  }
 }
+export type EstadoGeneracionPat = 'EN_COLA' | 'PROCESANDO' | 'LISTO' | 'FALLIDO'
 export interface GeneracionPatB {
   id: string
-  estado: 'EN_COLA' | 'PROCESANDO' | 'LISTO' | 'FALLIDO'
+  estado: EstadoGeneracionPat
+  ciclo?: number
   error?: string | null
+  solicitadaEn?: string
+  procesandoDesde?: string | null
+  generadaEn?: string | null
+  tamanoBytes?: number | null
+  /** Documento GENERADO entregado desde esta generación, si existe. */
+  documentoPatId?: string | null
 }
+export const generacionActiva = (g?: Pick<GeneracionPatB, 'estado'> | null) =>
+  g?.estado === 'EN_COLA' || g?.estado === 'PROCESANDO'
+
 const rutaPat = (pid: string, aid: string) => `/periodos/${pid}/asignaciones-tema/${aid}/pat/me`
+const clavePat = (usuarioId: string, pid?: string, aid?: string) =>
+  [...K.pat, 'me', usuarioId, pid, aid] as const
 
-export const useDatosPat = () => {
+export const useResumenPat = (pid?: string, aid?: string) => {
   const usuario = useUsuario()
   return useQuery({
-    queryKey: [...K.pat, 'datos-personales', usuario.id],
-    queryFn: () => api.get<DatosPatB>('/estudiantes/me/datos-pat'),
-  })
-}
-
-export const useGuardarDatosPat = () =>
-  useMutacion({
-    fn: (datos: Record<string, unknown>) =>
-      api.patch<DatosPatB>('/estudiantes/me/datos-pat', datos),
-    invalida: [K.pat],
-    exito: 'Datos personales guardados.',
-  })
-
-export const useContenidoPat = (pid?: string, aid?: string) => {
-  const usuario = useUsuario()
-  return useQuery({
-    queryKey: [...K.pat, 'contenido', usuario.id, pid, aid],
-    queryFn: () => api.get<ContenidoPatB>(`${rutaPat(pid!, aid!)}`),
+    queryKey: [...clavePat(usuario.id, pid, aid), 'resumen'],
+    queryFn: () => api.get<ResumenPatB>(`${rutaPat(pid!, aid!)}/resumen`),
     enabled: !!pid && !!aid,
   })
 }
 
+/** Datos personales: se guardan una vez por estudiante y se reutilizan en cada PAT. */
+export const useGuardarDatosPat = () =>
+  useMutacion({
+    fn: (datos: Record<string, unknown>) =>
+      api.patch<{ pendientes: string[] }>('/estudiantes/me/datos-pat', datos),
+    invalida: [K.pat],
+    silenciarError: () => true,
+  })
+
 export const useGuardarContenidoPat = (pid?: string, aid?: string) =>
   useMutacion({
     fn: (contenido: Record<string, unknown>) =>
-      api.patch<ContenidoPatB>(rutaPat(pid!, aid!), contenido),
+      api.patch<{ pendientes: string[] }>(rutaPat(pid!, aid!), contenido),
     invalida: [K.pat],
-    exito: 'Contenido del PAT guardado.',
+    silenciarError: () => true,
   })
 
-export const useSolicitarGeneracionPat = (pid?: string, aid?: string) =>
+/** Elegir otra propuesta de tutor (solo sin tutor vigente); `null` vuelve a la predeterminada. */
+export const useElegirTutorPat = (pid?: string, aid?: string) =>
   useMutacion({
-    fn: (tutorPropuestoId?: string) =>
-      api.post<GeneracionPatB>(`${rutaPat(pid!, aid!)}/generaciones`, {
-        tutor_propuesto_id: tutorPropuestoId,
-      }),
+    fn: (tutorPropuestoId: string | null) =>
+      api.patch<unknown>(rutaPat(pid!, aid!), { tutorPropuestoId }),
     invalida: [K.pat],
-    exito: 'Generación del PAT solicitada.',
+    exito: 'Tutor propuesto actualizado.',
   })
 
+/** Historial de generaciones propias (más reciente primero); reemplaza el uso de sessionStorage. */
+export const useGeneracionesPat = (pid?: string, aid?: string) => {
+  const usuario = useUsuario()
+  return useQuery({
+    queryKey: [...clavePat(usuario.id, pid, aid), 'generaciones'],
+    queryFn: async () =>
+      (
+        await api.get<{ data: GeneracionPatB[]; total: number }>(
+          `${rutaPat(pid!, aid!)}/generaciones`,
+        )
+      ).data,
+    enabled: !!pid && !!aid,
+  })
+}
+
+/** Consulta una generación y la vuelve a consultar cada 3 s mientras está en cola o procesando. */
 export const useGeneracionPat = (pid?: string, aid?: string, id?: string) => {
   const usuario = useUsuario()
   return useQuery({
-    queryKey: [...K.pat, 'generacion', usuario.id, pid, aid, id],
+    queryKey: [...clavePat(usuario.id, pid, aid), 'generacion', id],
     queryFn: () => api.get<GeneracionPatB>(`${rutaPat(pid!, aid!)}/generaciones/${id}`),
     enabled: !!pid && !!aid && !!id,
-    refetchInterval: (q) =>
-      ['EN_COLA', 'PROCESANDO'].includes(q.state.data?.estado ?? '') ? 3000 : false,
+    refetchInterval: (q) => (generacionActiva(q.state.data) ? 3000 : false),
   })
 }
+
+export const useSolicitarGeneracionPat = (pid?: string, aid?: string) =>
+  useMutacion({
+    fn: () => api.post<GeneracionPatB>(`${rutaPat(pid!, aid!)}/generaciones`, {}),
+    invalida: [K.pat],
+    exito: 'Generación del PAT solicitada.',
+    // el paso «Entregar» muestra el error en línea (pendientes incluidos)
+    silenciarError: () => true,
+  })
+
+export const useReintentarGeneracionPat = (pid?: string, aid?: string) =>
+  useMutacion({
+    fn: (id: string) =>
+      api.post<GeneracionPatB>(`${rutaPat(pid!, aid!)}/generaciones/${id}/reintentar`, {}),
+    invalida: [K.pat],
+    exito: 'Generación reintentada.',
+  })
+
+/** Entrega directa del PDF generado, sin firma (`origen=GENERADO`). */
+export const useEntregarGeneracionPat = (pid?: string, aid?: string) =>
+  useMutacion({
+    fn: async (id: string) =>
+      documentoPat(
+        await api.post<DocumentoPatB>(`${rutaPat(pid!, aid!)}/generaciones/${id}/entregar`, {}),
+      ),
+    invalida: [K.pat, K.me, K.asignaciones],
+    exito: (d) => `PAT versión ${d.version} entregado. Quedó pendiente de revisión.`,
+  })
 
 export async function descargarGeneracionPat(pid: string, aid: string, id: string) {
   const r = await api.get<UrlFirmadaB>(`${rutaPat(pid, aid)}/generaciones/${id}/descarga`)
