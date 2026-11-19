@@ -25,3 +25,14 @@ export const periodoSchema = z
   })
 
 export type PeriodoForm = z.infer<typeof periodoSchema>
+
+/** Motivo obligatorio de una transición forzada (10–500 caracteres, como `TransicionPeriodoDto`). */
+export const transicionForzadaSchema = z.object({
+  motivo: z
+    .string()
+    .trim()
+    .min(10, 'Explique el motivo (mínimo 10 caracteres).')
+    .max(500, 'Máximo 500 caracteres.'),
+})
+
+export type TransicionForzadaForm = z.infer<typeof transicionForzadaSchema>

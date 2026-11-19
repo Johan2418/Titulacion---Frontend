@@ -9,7 +9,8 @@ export type UUID = string
 export type ISODate = string
 
 // ───────────── Enums ─────────────
-export const ROLES = ['ESTUDIANTE', 'DOCENTE', 'ADMIN'] as const
+/** COORDINADOR (bloque 4): gestiona los programas de temas de los que es responsable. */
+export const ROLES = ['ESTUDIANTE', 'DOCENTE', 'ADMIN', 'COORDINADOR'] as const
 export type Rol = (typeof ROLES)[number]
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO'
 
@@ -36,13 +37,22 @@ export type EstadoIntegrante = 'ACTIVO' | 'RETIRADO'
 
 export type EstadoInvitacion = 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'CANCELADA' | 'EXPIRADA'
 
-export const ESTADOS_TEMA = ['BORRADOR', 'PUBLICADO', 'CERRADO', 'ASIGNADO', 'RETIRADO'] as const
+/** RESERVADO: retenido por una postulación PENDIENTE_CONFIRMACION o PENDIENTE (bloque 3). */
+export const ESTADOS_TEMA = [
+  'BORRADOR',
+  'PUBLICADO',
+  'RESERVADO',
+  'CERRADO',
+  'ASIGNADO',
+  'RETIRADO',
+] as const
 export type EstadoTema = (typeof ESTADOS_TEMA)[number]
 
 export const TIPOS_TEMA = ['INDIVIDUAL', 'PAREJA', 'GRUPO'] as const
 export type TipoTema = (typeof TIPOS_TEMA)[number]
 
 export const ESTADOS_POSTULACION = [
+  'PENDIENTE_CONFIRMACION',
   'PENDIENTE',
   'EN_CONFLICTO',
   'ACEPTADA',
@@ -52,6 +62,16 @@ export const ESTADOS_POSTULACION = [
 ] as const
 export type EstadoPostulacion = (typeof ESTADOS_POSTULACION)[number]
 export type Modalidad = 'INDIVIDUAL' | 'GRUPAL'
+/** Estados que mantienen activa una postulación (y reservado su tema). */
+export const ESTADOS_POSTULACION_ACTIVA: readonly EstadoPostulacion[] = [
+  'PENDIENTE_CONFIRMACION',
+  'PENDIENTE',
+  'EN_CONFLICTO',
+  'ACEPTADA',
+]
+
+export const ESTADOS_CONFIRMACION = ['PENDIENTE', 'CONFIRMADA', 'RECHAZADA'] as const
+export type EstadoConfirmacion = (typeof ESTADOS_CONFIRMACION)[number]
 
 export type EstadoAsignacionTema = 'VIGENTE' | 'ANULADA'
 export type CausaAnulacion = 'INCUMPLIMIENTO_CONDICION' | 'OTRA'
@@ -260,8 +280,35 @@ export interface Tema {
   creadoEn: ISODate
   /** RF-07: publicado y sin asignación vigente */
   disponible: boolean
-  /** RF-07: postulaciones PENDIENTE o EN_CONFLICTO */
+  /** RF-07: postulaciones PENDIENTE_CONFIRMACION, PENDIENTE o EN_CONFLICTO */
   postulacionesAbiertas: number
+  programaId?: UUID | null
+  programa?: { id: UUID; nombre: string } | null
+  categoria?: string | null
+}
+
+/** Programa de temas de una carrera (bloque 4) con un único responsable. */
+export interface Programa {
+  id: UUID
+  nombre: string
+  descripcion: string | null
+  carreraId: UUID
+  carrera: CarreraResumen
+  responsableDocenteId: UUID | null
+  responsableUsuarioId: UUID | null
+  responsable: {
+    tipo: 'DOCENTE' | 'COORDINADOR'
+    /** id del perfil docente o de la cuenta COORDINADOR */
+    id: UUID
+    nombres: string
+    apellidos: string
+  }
+  maxTemas: number
+  /** Temas no RETIRADOS: cuentan para `maxTemas`. */
+  temasRegistrados: number
+  activo: boolean
+  creadoEn: ISODate
+  actualizadoEn: ISODate
 }
 
 export interface TemaHistorial {
@@ -332,6 +379,33 @@ export interface Postulacion {
   tutoresPropuestos: TutorPropuesto[]
   /** Asignación vigente derivada de esta postulación, si existe */
   asignacionVigenteId?: UUID | null
+  /** Respuesta de cada participante a la reserva (vacío en postulaciones anteriores). */
+  confirmaciones?: ConfirmacionIntegrante[]
+  /** Vencimiento de la reserva; solo mientras está PENDIENTE_CONFIRMACION. */
+  venceEn?: ISODate | null
+}
+
+export interface ConfirmacionIntegrante {
+  /** id de estudiante */
+  estudianteId: UUID
+  nombres: string
+  apellidos: string
+  estado: EstadoConfirmacion
+  respondidaEn: ISODate | null
+}
+
+/** GET /postulaciones/confirmaciones-pendientes: reservas que el estudiante debe responder. */
+export interface ConfirmacionPendiente {
+  postulacionId: UUID
+  periodoId: UUID
+  estadoPostulacion: EstadoPostulacion
+  fechaPostulacion: ISODate
+  venceEn: ISODate
+  tema: { id: UUID; titulo: string; tipo: TipoTema; estado: EstadoTema }
+  grupo: { id: UUID; nombre: string } | null
+  representante: { id: UUID; nombres: string; apellidos: string }
+  miConfirmacion: { estado: EstadoConfirmacion; respondidaEn: ISODate | null }
+  confirmaciones: ConfirmacionIntegrante[]
 }
 
 export interface ConflictoParticipante {

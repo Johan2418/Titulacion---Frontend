@@ -143,3 +143,13 @@ export function opcionesTemas(
     .map(([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label, 'es'))
 }
+
+/** Plazo para que los integrantes confirmen un tema reservado (`RESERVA_CONFIRMACION_HORAS`). */
+export const HORAS_CONFIRMACION_RESERVA = 48
+
+/** Mensaje tras registrar la postulación: la grupal reserva el tema hasta que todos confirmen. */
+export function mensajePostulacionRegistrada(p: Pick<Postulacion, 'estado'>): string {
+  if (p.estado === 'PENDIENTE_CONFIRMACION')
+    return `Tema reservado para tu grupo. Los demás integrantes deben confirmarlo en ${HORAS_CONFIRMACION_RESERVA} horas; si alguno lo rechaza o no responde a tiempo, el tema vuelve al banco.`
+  return 'Postulación registrada. El tema quedó reservado mientras se resuelve tu postulación.'
+}

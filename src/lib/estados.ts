@@ -2,6 +2,7 @@ import type {
   CausaAnulacion,
   CondicionIngreso,
   CriterioConflicto,
+  EstadoConfirmacion,
   EstadoAsignacionTema,
   EstadoAsignacionTutor,
   EstadoDocumentoPat,
@@ -45,6 +46,7 @@ export const ESTADO_PERIODO: Mapa<EstadoPeriodo> = {
 export const ESTADO_TEMA: Mapa<EstadoTema> = {
   BORRADOR: { label: 'Borrador', tono: 'muted' },
   PUBLICADO: { label: 'Publicado', tono: 'success' },
+  RESERVADO: { label: 'Reservado', tono: 'warning' },
   CERRADO: { label: 'Cerrado', tono: 'warning' },
   ASIGNADO: { label: 'Asignado', tono: 'info' },
   RETIRADO: { label: 'Retirado', tono: 'danger' },
@@ -57,12 +59,19 @@ export const TIPO_TEMA: Mapa<TipoTema> = {
 }
 
 export const ESTADO_POSTULACION: Mapa<EstadoPostulacion> = {
+  PENDIENTE_CONFIRMACION: { label: 'Pendiente de confirmación', tono: 'warning' },
   PENDIENTE: { label: 'Pendiente', tono: 'warning' },
   EN_CONFLICTO: { label: 'En conflicto', tono: 'danger' },
   ACEPTADA: { label: 'Aceptada', tono: 'success' },
   RECHAZADA: { label: 'Rechazada', tono: 'neutral' },
   CANCELADA: { label: 'Cancelada', tono: 'muted' },
   ANULADA: { label: 'Anulada', tono: 'muted' },
+}
+
+export const ESTADO_CONFIRMACION: Mapa<EstadoConfirmacion> = {
+  PENDIENTE: { label: 'Por confirmar', tono: 'warning' },
+  CONFIRMADA: { label: 'Confirmó', tono: 'success' },
+  RECHAZADA: { label: 'Rechazó', tono: 'danger' },
 }
 
 export const ESTADO_GRUPO: Mapa<EstadoGrupo> = {
@@ -170,6 +179,7 @@ export const ROL: Mapa<Rol> = {
   ESTUDIANTE: { label: 'Estudiante', tono: 'info' },
   DOCENTE: { label: 'Docente', tono: 'success' },
   ADMIN: { label: 'Administrador', tono: 'warning' },
+  COORDINADOR: { label: 'Coordinador', tono: 'neutral' },
 }
 
 export const TIPO_REPORTE: Record<TipoReporte, string> = {

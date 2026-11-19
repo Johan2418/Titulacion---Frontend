@@ -23,6 +23,7 @@ const RELEVANCIA: EstadoPostulacion[] = [
   'ACEPTADA',
   'EN_CONFLICTO',
   'PENDIENTE',
+  'PENDIENTE_CONFIRMACION',
   'RECHAZADA',
   'CANCELADA',
   'ANULADA',

@@ -27,15 +27,14 @@ import {
   SITUACION_INGRESO,
 } from '@/lib/estados'
 import { cn, nombreCompleto } from '@/lib/utils'
-import type { Seguimiento as SeguimientoT } from '@/types/dominio'
+import { ESTADOS_POSTULACION_ACTIVA, type Seguimiento as SeguimientoT } from '@/types/dominio'
 
 type EstadoPaso = 'hecho' | 'actual' | 'pendiente' | 'alerta'
 
 function pasos(s: SeguimientoT): { titulo: string; detalle: string; estado: EstadoPaso }[] {
   const h = s.habilitacion
   const noAdmitido = h?.situacionIngreso === 'NO_ADMITIDO'
-  const activa =
-    s.postulacion && ['PENDIENTE', 'EN_CONFLICTO', 'ACEPTADA'].includes(s.postulacion.estado)
+  const activa = s.postulacion && ESTADOS_POSTULACION_ACTIVA.includes(s.postulacion.estado)
   return [
     {
       titulo: 'Habilitación',

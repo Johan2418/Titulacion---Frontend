@@ -16,12 +16,14 @@ import type { DocenteResumen, EstadoTema, Postulacion, Tema, TipoTema } from '@/
 export interface FiltrosTema {
   /** Period context: required for students; sets the GRUPO upper bound. */
   periodoId?: string
+  facultadId?: string
   carreraId?: string
   lineaId?: string
   docenteId?: string
   estado?: EstadoTema | ''
   tipo?: TipoTema | ''
   disponible?: boolean
+  programaId?: string
 }
 
 export type TemaInput = {
@@ -31,17 +33,22 @@ export type TemaInput = {
   tipo: TipoTema
   titulo: string
   descripcion: string
+  /** null quita el tema del programa (solo ADMIN) */
+  programaId?: string | null
+  categoria?: string | null
 }
 
 /** Query params of GET /temas (the HTTP client converts keys to snake_case and drops empty values). */
 export const consultaTemas = (f: FiltrosTema = {}) => ({
   periodoId: f.periodoId,
+  facultadId: f.facultadId,
   carreraId: f.carreraId,
   lineaId: f.lineaId,
   docenteProponenteId: f.docenteId,
   estado: f.estado,
   tipo: f.tipo,
   disponible: f.disponible === undefined ? undefined : String(f.disponible),
+  programaId: f.programaId || undefined,
 })
 
 export const listarTemas = async (f: FiltrosTema = {}) =>

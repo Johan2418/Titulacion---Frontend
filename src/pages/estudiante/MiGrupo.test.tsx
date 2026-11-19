@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MiGrupo from './MiGrupo'
 
-const { miGrupo, crear, consulta, mutacion } = vi.hoisted(() => ({
+const { miGrupo, misPostulaciones, crear, consulta, mutacion } = vi.hoisted(() => ({
   miGrupo: vi.fn(),
+  misPostulaciones: vi.fn(),
   crear: vi.fn(),
   consulta: (data: unknown) => ({ isPending: false, isError: false, data }),
   mutacion: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
@@ -29,6 +30,10 @@ vi.mock('@/features/grupos/api', () => ({
   useCrearGrupo: () => ({ mutate: crear, isPending: false }),
 }))
 
+vi.mock('@/features/postulaciones/api', () => ({
+  useMisPostulaciones: () => misPostulaciones(),
+}))
+
 const integrante = (id: string, nombres: string, rolEnGrupo: string, matricula?: string) => ({
   id: `i-${id}`,
   estado: 'ACTIVO',
@@ -39,6 +44,7 @@ const integrante = (id: string, nombres: string, rolEnGrupo: string, matricula?:
 describe('MiGrupo (estudiante)', () => {
   beforeEach(() => {
     crear.mockReset()
+    misPostulaciones.mockReturnValue(consulta([]))
   })
 
   it('no muestra columna de matrícula ni busca por ella, y lista candidatos solo con nombre', () => {
@@ -62,6 +68,55 @@ describe('MiGrupo (estudiante)', () => {
     expect(screen.getByRole('searchbox', { name: 'Buscar por nombre' })).toBeTruthy()
     const lista = screen.getByRole('list', { name: 'Estudiante a invitar' })
     expect(within(lista).getAllByRole('button')).toHaveLength(2)
+  })
+
+  it('muestra quién confirmó el tema reservado mientras la postulación espera confirmaciones', () => {
+    miGrupo.mockReturnValue(
+      consulta({
+        id: 'g1',
+        periodoId: 'p1',
+        nombre: 'Equipo',
+        estado: 'ACTIVO',
+        composicionCerrada: true,
+        integrantes: [
+          integrante('e1', 'Ana', 'REPRESENTANTE'),
+          integrante('e2', 'Luis', 'INTEGRANTE'),
+        ],
+      }),
+    )
+    misPostulaciones.mockReturnValue(
+      consulta([
+        {
+          id: 'po1',
+          estado: 'PENDIENTE_CONFIRMACION',
+          grupo: { id: 'g1', nombre: 'Equipo' },
+          tema: { id: 't1', titulo: 'Visión artificial' },
+          venceEn: '2026-11-18T10:00:00Z',
+          confirmaciones: [
+            {
+              estudianteId: 'e1',
+              nombres: 'Ana',
+              apellidos: 'X',
+              estado: 'CONFIRMADA',
+              respondidaEn: '2026-11-16T10:00:00Z',
+            },
+            {
+              estudianteId: 'e2',
+              nombres: 'Luis',
+              apellidos: 'X',
+              estado: 'PENDIENTE',
+              respondidaEn: null,
+            },
+          ],
+        },
+      ]),
+    )
+    render(<MiGrupo />)
+    expect(screen.getByText('Tema reservado: Visión artificial')).toBeInTheDocument()
+    const lista = screen.getByRole('list', { name: 'Confirmación de integrantes' })
+    expect(within(lista).getByText('Confirmó')).toBeInTheDocument()
+    expect(within(lista).getByText('Por confirmar')).toBeInTheDocument()
+    expect(screen.getByText('Confirmación de integrantes (1 de 2)')).toBeInTheDocument()
   })
 
   it('rechaza nombres con enlaces antes de llamar al servidor', async () => {

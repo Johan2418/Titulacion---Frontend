@@ -15,7 +15,9 @@ import { FLUJO, K } from '@/api/claves'
 import { useMutacion } from '@/api/mutacion'
 import { useUsuario } from '@/auth/AuthProvider'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { mensajePostulacionRegistrada } from './reglas'
 import type {
+  ConfirmacionPendiente,
   ConflictoAbierto,
   CriterioConflicto,
   EstadoPostulacion,
@@ -106,7 +108,7 @@ export const usePostular = () => {
         }),
       ),
     invalida: FLUJO,
-    exito: 'Postulación registrada.',
+    exito: mensajePostulacionRegistrada,
   })
 }
 
@@ -291,3 +293,42 @@ export const useResolverConflicto = () => {
     exito: 'Conflicto resuelto. La postulación ganadora quedó aceptada.',
   })
 }
+
+// ── Confirmación obligatoria del tema reservado (bloque 3) ──
+export const CLAVE_CONFIRMACIONES_PENDIENTES = [...K.postulaciones, 'confirmaciones-pendientes']
+
+/** Reservas que el estudiante debe confirmar o rechazar, ordenadas por vencimiento. */
+export const useConfirmacionesPendientes = (enabled = true) =>
+  useQuery({
+    queryKey: CLAVE_CONFIRMACIONES_PENDIENTES,
+    queryFn: () => api.get<ConfirmacionPendiente[]>('/postulaciones/confirmaciones-pendientes'),
+    enabled,
+    // si vence una reserva o la responde otro integrante, la lista se actualiza sola
+    refetchInterval: 60_000,
+  })
+
+export type RespuestaConfirmacion =
+  | { postulacionId: string; accion: 'confirmar' }
+  | { postulacionId: string; accion: 'rechazar'; motivo?: string }
+
+/** Cuerpo de la respuesta: confirmar va vacío; rechazar lleva el motivo solo si se escribió. */
+export const cuerpoRespuestaConfirmacion = (r: RespuestaConfirmacion) => {
+  if (r.accion === 'confirmar') return undefined
+  const motivo = r.motivo?.trim()
+  return motivo ? { motivo } : {}
+}
+
+export const useResponderConfirmacion = () =>
+  useMutacion({
+    fn: (r: RespuestaConfirmacion) =>
+      api.post<ConfirmacionPendiente>(
+        `/postulaciones/${r.postulacionId}/${r.accion}`,
+        cuerpoRespuestaConfirmacion(r),
+      ),
+    // el grupo, la postulación y el catálogo cambian: confirmar o rechazar mueve el tema
+    invalida: [K.postulaciones, K.me, K.grupos, K.temas, K.notificaciones],
+    exito: (_d, r) =>
+      r.accion === 'confirmar'
+        ? 'Confirmaste el tema reservado.'
+        : 'Rechazaste el tema. La postulación del grupo se rechazó y el tema volvió al banco.',
+  })

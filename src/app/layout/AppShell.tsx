@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { ConfirmacionObligatoria } from '@/features/postulaciones/ConfirmacionObligatoria'
 import { ESTADO_PERIODO, ROL } from '@/lib/estados'
 import { cn } from '@/lib/utils'
 import { useTema } from '../tema'
@@ -80,6 +81,7 @@ function Sidebar({ onNavegar }: { onNavegar?: () => void }) {
 function SelectorPeriodo() {
   const usuario = useUsuario()
   const { periodos, periodo, seleccionar } = usePeriodo()
+  if (usuario.rol === 'COORDINADOR') return null
   if (!periodo) return <span className="text-sm text-muted-foreground">Sin período activo</span>
   if (usuario.rol !== 'ADMIN')
     return (
@@ -217,6 +219,7 @@ export function AppShell() {
         >
           <Outlet />
         </main>
+        {usuario.rol === 'ESTUDIANTE' && <ConfirmacionObligatoria />}
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import type {
   CandidatoInvitacion,
   CarreraResumen,
   ConfigCargaTutorial,
+  ConfirmacionIntegrante,
   Docente,
   DocenteResumen,
   DocumentoPat,
@@ -93,6 +94,10 @@ export interface TemaB {
   creadoEn: ISODate
   disponible: boolean
   postulacionesAbiertas: number
+  /** Bloque 4 */
+  programaId?: UUID | null
+  programa?: { id: UUID; nombre: string } | null
+  categoria?: string | null
 }
 
 export interface TemaHistorialB {
@@ -150,6 +155,10 @@ export interface PostulacionB {
   observacion: string | null
   /** Tutores propuestos embebidos por el backend (cargados en lote). */
   tutoresPropuestos?: TutorPropuestoB[]
+  /** Bloque 3: respuesta de cada participante a la reserva (vacío en postulaciones anteriores). */
+  confirmaciones?: ConfirmacionIntegrante[]
+  /** Bloque 3: vencimiento de la reserva mientras está PENDIENTE_CONFIRMACION. */
+  venceEn?: ISODate | null
 }
 
 export interface TutorPropuestoB {
@@ -380,6 +389,9 @@ export const tema = (t: TemaB): Tema => ({
   creadoEn: t.creadoEn,
   disponible: t.disponible,
   postulacionesAbiertas: t.postulacionesAbiertas,
+  programaId: t.programaId ?? null,
+  programa: t.programa ?? null,
+  categoria: t.categoria ?? null,
 })
 
 /** El backend guarda { anteriores, nuevos }; el front muestra { campo: { antes, despues } }. */
@@ -465,6 +477,8 @@ export const postulacion = (
     observacion: p.observacion,
     tutoresPropuestos: tutores,
     asignacionVigenteId: extra.asignacionVigenteId ?? null,
+    confirmaciones: p.confirmaciones ?? [],
+    venceEn: p.venceEn ?? null,
   }
 }
 

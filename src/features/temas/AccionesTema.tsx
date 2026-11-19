@@ -9,6 +9,8 @@ import { useAccionTema, type AccionTema } from './api'
 const DISPONIBLES: Record<Tema['estado'], AccionTema[]> = {
   BORRADOR: ['publicar', 'retirar'],
   PUBLICADO: ['cerrar', 'retirar'],
+  // cerrar o retirar un tema reservado rechaza también las postulaciones por confirmar
+  RESERVADO: ['cerrar', 'retirar'],
   CERRADO: ['publicar', 'retirar'],
   ASIGNADO: [],
   RETIRADO: [],
@@ -41,12 +43,22 @@ const REABRIR = {
 const requiereMotivo = (a: AccionTema) => a !== 'publicar'
 
 /** RF-21 / RF-25: transiciones de estado del tema. */
-export function AccionesTema({ tema, size = 'sm' }: { tema: Tema; size?: 'sm' | 'default' }) {
+export function AccionesTema({
+  tema,
+  size = 'sm',
+  soloPublicar,
+}: {
+  tema: Tema
+  size?: 'sm' | 'default'
+  /** COORDINADOR: solo publica o reabre; cerrar y retirar siguen siendo de ADMIN. */
+  soloPublicar?: boolean
+}) {
   const accion = useAccionTema()
   const [motivo, setMotivo] = useState('')
+  const disponibles = DISPONIBLES[tema.estado].filter((a) => !soloPublicar || a === 'publicar')
   return (
     <div className="flex flex-wrap justify-end gap-1">
-      {DISPONIBLES[tema.estado].map((a) => {
+      {disponibles.map((a) => {
         const reabrir = a === 'publicar' && tema.estado === 'CERRADO'
         const texto = reabrir ? REABRIR : TEXTO[a]
         return (

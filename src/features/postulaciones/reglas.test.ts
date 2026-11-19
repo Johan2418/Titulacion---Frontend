@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Grupo } from '@/types/dominio'
 import {
   esRepresentante,
+  mensajePostulacionRegistrada,
   moverElemento,
   opcionesTemas,
   ordenarSugeridos,
@@ -179,5 +180,14 @@ describe('opcionesTemas', () => {
       { value: 't2', label: 'Visión artificial' },
     ])
     expect(opcionesTemas(undefined)).toEqual([])
+  })
+})
+
+describe('mensajePostulacionRegistrada', () => {
+  it('avisa que el tema queda reservado y que el grupo debe confirmarlo en 48 h', () => {
+    expect(mensajePostulacionRegistrada({ estado: 'PENDIENTE_CONFIRMACION' })).toMatch(
+      /Tema reservado.*confirmarlo en 48 horas.*vuelve al banco/,
+    )
+    expect(mensajePostulacionRegistrada({ estado: 'PENDIENTE' })).toMatch(/reservado/)
   })
 })

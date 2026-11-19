@@ -1,6 +1,9 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
+import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Label } from './ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from './ui/command'
 
 /** Envoltorio accesible para campos de formulario: etiqueta, ayuda y error. */
 export function Campo({
@@ -53,7 +56,16 @@ export function Campo({
 
 export const TODOS = '__todos__'
 
-/** Select simple a partir de una lista de opciones. */
+/** Minúsculas y sin diacríticos: "ingenieria" coincide con "Ingeniería". */
+export function normalizarBusqueda(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+/** Select con búsqueda (combobox) a partir de una lista de opciones. */
 export function SelectSimple({
   id,
   value,
@@ -78,23 +90,65 @@ export function SelectSimple({
   'aria-describedby'?: string
   'aria-label'?: string
 }) {
+  const [abierto, setAbierto] = useState(false)
+  const actual = todos && !value ? TODOS : value || undefined
+  const items: { value: string; label: string; disabled?: boolean }[] = [
+    ...(todos ? [{ value: TODOS, label: todos }] : []),
+    ...opciones,
+  ]
+  const seleccionada = items.find((o) => o.value === actual)
+
+  const elegir = (v: string) => {
+    onChange(v === TODOS ? '' : v)
+    setAbierto(false)
+  }
+
   return (
-    <Select
-      value={todos && !value ? TODOS : value || undefined}
-      onValueChange={(v) => onChange(v === TODOS ? '' : v)}
-      disabled={disabled}
-    >
-      <SelectTrigger id={id} className={className} {...aria}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {todos && <SelectItem value={TODOS}>{todos}</SelectItem>}
-        {opciones.map((o) => (
-          <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover open={abierto} onOpenChange={setAbierto}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          id={id}
+          role="combobox"
+          aria-expanded={abierto}
+          aria-haspopup="listbox"
+          disabled={disabled}
+          data-placeholder={seleccionada ? undefined : ''}
+          className={cn(
+            'flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-sm shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground aria-invalid:border-destructive',
+            className,
+          )}
+          {...aria}
+        >
+          <span className="truncate">{seleccionada?.label ?? placeholder}</span>
+          <ChevronDownIcon className="size-4 shrink-0 opacity-50" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[8rem]">
+        <Command
+          label="Buscar"
+          filter={(_valor, busqueda, keywords) =>
+            normalizarBusqueda(keywords?.[0] ?? '').includes(normalizarBusqueda(busqueda)) ? 1 : 0
+          }
+        >
+          <CommandInput placeholder="Buscar…" />
+          <CommandList>
+            <CommandEmpty>Sin resultados</CommandEmpty>
+            {items.map((o) => (
+              <CommandItem
+                key={o.value}
+                value={o.value}
+                keywords={[o.label]}
+                disabled={o.disabled}
+                onSelect={() => elegir(o.value)}
+              >
+                <span className="flex-1 truncate">{o.label}</span>
+                {o.value === actual && <CheckIcon className="size-4" aria-hidden />}
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }

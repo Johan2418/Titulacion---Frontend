@@ -37,7 +37,9 @@ export const periodoVigente = (periodos: PeriodoTitulacion[]) =>
 
 const listarPeriodos = () => api.todas<PeriodoTitulacion>('/periodos')
 
-export const usePeriodos = () => useQuery({ queryKey: K.periodos, queryFn: listarPeriodos })
+/** `enabled=false` para roles sin acceso a GET /periodos (COORDINADOR responde 403). */
+export const usePeriodos = (enabled = true) =>
+  useQuery({ queryKey: K.periodos, queryFn: listarPeriodos, enabled })
 
 export const usePeriodoActual = () =>
   useQuery({
@@ -109,18 +111,43 @@ const ACCION_ESTADO: Partial<Record<EstadoPeriodo, string>> = {
   ARCHIVADO: 'archivar',
 }
 
+export interface CambioEstadoPeriodo {
+  id: string
+  estado: EstadoPeriodo
+  /** Archivar lo exige; en una transición forzada es obligatorio (10–500 caracteres). */
+  motivo?: string
+  /** Mueve a la hora actual la fecha que aún no se alcanza (transición forzada). */
+  forzar?: boolean
+}
+
+/** Cuerpo de la acción: archivar lleva motivo; forzar, `{ forzar, motivo }`; el resto, vacío. */
+export const cuerpoCambioEstado = ({ estado, motivo, forzar }: CambioEstadoPeriodo) => {
+  if (estado === 'ARCHIVADO') return { motivo }
+  if (forzar) return { forzar: true, motivo: motivo?.trim() }
+  return {}
+}
+
+const cambiarEstado = (c: CambioEstadoPeriodo) => {
+  const accion = ACCION_ESTADO[c.estado]
+  if (!accion) noDisponible(`El cambio de estado a ${c.estado}`)
+  return api.post<PeriodoTitulacion>(`/periodos/${c.id}/${accion}`, cuerpoCambioEstado(c))
+}
+
+// iniciar titulación suspende a los condicionados pendientes y cerrar vence las reservas
+const INVALIDA_CAMBIO_ESTADO = [K.periodos, K.habilitados, K.postulaciones, K.temas]
+
 export const useCambiarEstadoPeriodo = () =>
   useMutacion({
-    fn: ({ id, estado, motivo }: { id: string; estado: EstadoPeriodo; motivo?: string }) => {
-      const accion = ACCION_ESTADO[estado]
-      if (!accion) noDisponible(`El cambio de estado a ${estado}`)
-      // archivar exige un motivo; las demás transiciones no admiten cuerpo
-      return api.post<PeriodoTitulacion>(
-        `/periodos/${id}/${accion}`,
-        estado === 'ARCHIVADO' ? { motivo } : {},
-      )
-    },
-    // iniciar titulación suspende a los condicionados pendientes: refrescar habilitados
-    invalida: [K.periodos, K.habilitados],
+    fn: cambiarEstado,
+    invalida: INVALIDA_CAMBIO_ESTADO,
     exito: 'Estado del período actualizado.',
+  })
+
+/** Transición forzada: el error se muestra dentro del diálogo de advertencia, no como aviso. */
+export const useTransicionForzada = () =>
+  useMutacion({
+    fn: (c: Omit<CambioEstadoPeriodo, 'forzar'>) => cambiarEstado({ ...c, forzar: true }),
+    invalida: INVALIDA_CAMBIO_ESTADO,
+    exito: 'Transición forzada aplicada. La fecha del período se ajustó a la hora actual.',
+    silenciarError: () => true,
   })

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useAuditoria } from '@/features/auditoria/api'
+import { esAccionForzada } from '@/features/periodos/reglas'
 import { formatFechaHora } from '@/lib/fechas'
 import { nombreCompleto } from '@/lib/utils'
 import type { Auditoria } from '@/types/dominio'
@@ -22,6 +23,7 @@ const ENTIDADES = [
   ['periodo_titulacion', 'Período'],
   ['estudiante_habilitado', 'Habilitación / ingreso'],
   ['tema', 'Tema'],
+  ['programa', 'Programa'],
   ['grupo', 'Grupo'],
   ['invitacion', 'Invitación'],
   ['postulacion', 'Postulación'],
@@ -245,6 +247,7 @@ export default function Historial() {
                   <div key={a.id} className="p-4">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <Badge tono="info">{a.accion.replaceAll('_', ' ').toLowerCase()}</Badge>
+                      {esAccionForzada(a.accion) && <Badge tono="danger">Forzada</Badge>}
                       <span className="font-medium">
                         {NOMBRE_ENTIDAD[a.entidadTipo] ?? a.entidadTipo}
                       </span>
@@ -267,6 +270,11 @@ export default function Historial() {
                       {a.usuario ? nombreCompleto(a.usuario) : 'Sistema'}
                       {a.ipOrigen && ` · IP ${a.ipOrigen}`}
                     </p>
+                    {esAccionForzada(a.accion) && typeof a.valoresNuevos?.motivo === 'string' && (
+                      <p className="mt-1 text-sm">
+                        <span className="font-medium">Motivo:</span> {a.valoresNuevos.motivo}
+                      </p>
+                    )}
                     <Diferencias antes={a.valoresAnteriores} despues={a.valoresNuevos} />
                   </div>
                 ))}

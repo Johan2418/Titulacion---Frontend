@@ -8,6 +8,7 @@ export const RUTA_INICIO: Record<Rol, string> = {
   ESTUDIANTE: '/estudiante',
   DOCENTE: '/docente',
   ADMIN: '/admin',
+  COORDINADOR: '/coordinador',
 }
 
 /** RNF-03: autorización por rol en el cliente (el backend es la autoridad final). */

@@ -9,15 +9,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useDocentes, useLineas } from '@/features/catalogos/api'
+import { useProgramas } from '@/features/programas/api'
+import { useUsuario } from '@/auth/AuthProvider'
 import { nombreCompleto } from '@/lib/utils'
 import type { Tema, TipoTema } from '@/types/dominio'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { useGuardarTema } from './api'
 import { opcionesTipoTema } from './integrantes'
-import { temaSchema, type TemaForm } from './schemas'
+import { camposProgramaTema, temaSchemaPara, type TemaForm } from './schemas'
 
 /** RF-20 / RF-21: registro y edición de temas del banco de una carrera (no dependen del período). */
 export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => void }) {
+  const usuario = useUsuario()
+  // bloque 4: el COORDINADOR solo registra temas dentro de sus programas
+  const esCoordinador = usuario.rol === 'COORDINADOR'
   const lineas = useLineas()
   const docentes = useDocentes()
   const facultades = useFacultades()
@@ -25,7 +30,7 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
   const { periodo } = usePeriodo()
   const maxPeriodo = periodo?.maxIntegrantesDefault
   const { register, handleSubmit, control, formState, setValue, watch } = useForm<TemaForm>({
-    resolver: zodResolver(temaSchema) as never,
+    resolver: zodResolver(temaSchemaPara(esCoordinador)) as never,
     defaultValues: tema
       ? {
           titulo: tema.titulo,
@@ -34,6 +39,8 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
           lineaId: tema.linea.id,
           docenteProponenteId: tema.docenteProponente.id,
           tipo: tema.tipo,
+          programaId: tema.programaId ?? '',
+          categoria: tema.categoria ?? '',
         }
       : {
           titulo: '',
@@ -42,19 +49,26 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
           lineaId: '',
           docenteProponenteId: '',
           tipo: undefined,
+          programaId: '',
+          categoria: '',
         },
   })
   const e = formState.errors
   const carreraId = watch('carreraId')
+  // programas activos de la carrera del tema (el COORDINADOR, solo los suyos)
+  const programas = useProgramas({ carreraId, activo: true, mios: esCoordinador }, !!carreraId)
   const conPostulaciones = !!tema && tema.postulacionesAbiertas > 0
 
   return (
     <form
       noValidate
       className="grid gap-4 sm:grid-cols-2"
-      onSubmit={handleSubmit((d) =>
-        guardar.mutate(tema ? { id: tema.id, ...d } : d, { onSuccess: onClose }),
-      )}
+      onSubmit={handleSubmit(({ programaId, categoria, ...d }) => {
+        const programa = camposProgramaTema({ programaId, categoria }, tema)
+        guardar.mutate(tema ? { id: tema.id, ...d, ...programa } : { ...d, ...programa }, {
+          onSuccess: onClose,
+        })
+      })}
     >
       <Campo
         etiqueta="Título"
@@ -86,8 +100,9 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
                   onChange={(v) => {
                     if (v === field.value) return
                     field.onChange(v)
-                    // el docente proponente debe pertenecer a la misma carrera del tema
+                    // el docente proponente y el programa deben ser de la misma carrera del tema
                     setValue('docenteProponenteId', '')
+                    setValue('programaId', '')
                   }}
                   opciones={opcionesCarrerasConFacultad(facultades.data)}
                 />
@@ -160,6 +175,52 @@ export function FormTema({ tema, onClose }: { tema: Tema | null; onClose: () => 
             )}
           />
         )}
+      </Campo>
+      <Campo
+        etiqueta="Programa"
+        requerido={esCoordinador}
+        error={e.programaId?.message}
+        ayuda="Solo programas activos de la carrera del tema."
+      >
+        {(p) => (
+          <Controller
+            control={control}
+            name="programaId"
+            render={({ field }) => {
+              const lista = programas.data ?? []
+              // conserva visible el programa actual aunque esté inactivo o lleno
+              const actual =
+                tema?.programa && !lista.some((x) => x.id === tema.programa?.id)
+                  ? [{ value: tema.programa.id, label: tema.programa.nombre }]
+                  : []
+              return (
+                <SelectSimple
+                  {...p}
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={!carreraId}
+                  placeholder={carreraId ? 'Sin programa' : 'Seleccione primero la carrera'}
+                  todos={esCoordinador ? undefined : 'Sin programa'}
+                  opciones={[
+                    ...actual,
+                    ...lista.map((x) => ({
+                      value: x.id,
+                      label: `${x.nombre} (${x.temasRegistrados}/${x.maxTemas})`,
+                      disabled: x.temasRegistrados >= x.maxTemas && x.id !== tema?.programaId,
+                    })),
+                  ]}
+                />
+              )
+            }}
+          />
+        )}
+      </Campo>
+      <Campo
+        etiqueta="Categoría"
+        error={e.categoria?.message}
+        ayuda="Opcional, hasta 120 caracteres."
+      >
+        {(p) => <Input {...p} maxLength={120} {...register('categoria')} />}
       </Campo>
       {conPostulaciones && (
         <Alert variant="info" className="sm:col-span-2">

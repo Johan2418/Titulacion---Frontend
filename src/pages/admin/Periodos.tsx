@@ -29,23 +29,47 @@ import {
   useResumenPeriodo,
   useConfigurarSedePat,
 } from '@/features/periodos/api'
-import { facultadBloqueada } from '@/features/periodos/reglas'
+import {
+  evaluarTransicion,
+  facultadBloqueada,
+  type TransicionPeriodo,
+} from '@/features/periodos/reglas'
+import { TransicionForzadaDialog } from '@/features/periodos/TransicionForzadaDialog'
 import { periodoSchema, type PeriodoForm } from '@/features/periodos/schemas'
 import { formatFecha, inputLocalToIso, isoToInputLocal } from '@/lib/fechas'
 import { ESTADO_PERIODO } from '@/lib/estados'
 import type { EstadoPeriodo, PeriodoTitulacion } from '@/types/dominio'
 
+interface Siguiente {
+  estado: EstadoPeriodo
+  label: string
+  transicion: TransicionPeriodo
+}
+
 /**
  * Transiciones manuales del período (el backend las valida). Archivar se ofrece aparte en
- * cualquier estado no archivado. La postulación también se abre y se cierra sola por fechas.
+ * cualquier estado no archivado. La postulación también se abre y se cierra sola por fechas;
+ * si la fecha aún no llega, la transición puede forzarse con un motivo.
  */
-const SIGUIENTE: Partial<Record<EstadoPeriodo, { estado: EstadoPeriodo; label: string }[]>> = {
-  BORRADOR: [{ estado: 'POSTULACION_ABIERTA', label: 'Abrir postulación' }],
-  POSTULACION_ABIERTA: [{ estado: 'POSTULACION_CERRADA', label: 'Cerrar postulación' }],
-  POSTULACION_CERRADA: [
-    { estado: 'POSTULACION_ABIERTA', label: 'Reabrir postulación' },
-    { estado: 'EN_CURSO', label: 'Iniciar titulación' },
+const SIGUIENTE: Partial<Record<EstadoPeriodo, Siguiente[]>> = {
+  BORRADOR: [{ estado: 'POSTULACION_ABIERTA', label: 'Abrir postulación', transicion: 'abrir' }],
+  POSTULACION_ABIERTA: [
+    { estado: 'POSTULACION_CERRADA', label: 'Cerrar postulación', transicion: 'cerrar' },
   ],
+  POSTULACION_CERRADA: [
+    { estado: 'POSTULACION_ABIERTA', label: 'Reabrir postulación', transicion: 'abrir' },
+    { estado: 'EN_CURSO', label: 'Iniciar titulación', transicion: 'iniciar' },
+  ],
+}
+
+/** Aviso dentro del diálogo cuando la fecha impide la transición (el backend la rechazará). */
+function AvisoBloqueo({ motivo }: { motivo?: string }) {
+  if (!motivo) return null
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {motivo}
+    </p>
+  )
 }
 
 function FormPeriodo({
@@ -246,7 +270,7 @@ function ArchivarPeriodo({ periodo }: { periodo: PeriodoTitulacion }) {
 }
 
 /** Iniciar titulación: los condicionados sin resolver quedan suspendidos y no admitidos. */
-function IniciarTitulacion({ periodo }: { periodo: PeriodoTitulacion }) {
+function IniciarTitulacion({ periodo, bloqueo }: { periodo: PeriodoTitulacion; bloqueo?: string }) {
   const cambiar = useCambiarEstadoPeriodo()
   // el backend calcula el conteo en GET /periodos (ADMIN) con una consulta agrupada
   const pendientes = periodo.condicionadosPendientes ?? 0
@@ -265,7 +289,50 @@ function IniciarTitulacion({ periodo }: { periodo: PeriodoTitulacion }) {
           : '')
       }
       onConfirm={() => cambiar.mutateAsync({ id: periodo.id, estado: 'EN_CURSO' })}
-    />
+    >
+      <AvisoBloqueo motivo={bloqueo} />
+    </ConfirmDialog>
+  )
+}
+
+/**
+ * Bloque 2: con la fecha alcanzada se confirma la transición normal; si aún no llega, el botón
+ * abre la advertencia de transición forzada (mueve la fecha a la hora actual con un motivo).
+ */
+function BotonTransicion({
+  periodo,
+  siguiente,
+}: {
+  periodo: PeriodoTitulacion
+  siguiente: Siguiente
+}) {
+  const cambiar = useCambiarEstadoPeriodo()
+  const evaluacion = evaluarTransicion(siguiente.transicion, periodo)
+  if (evaluacion.tipo === 'forzable')
+    return (
+      <TransicionForzadaDialog
+        periodo={periodo}
+        transicion={siguiente.transicion}
+        campo={evaluacion.campo}
+        etiqueta={siguiente.label}
+      />
+    )
+  const bloqueo = evaluacion.tipo === 'bloqueada' ? evaluacion.motivo : undefined
+  if (siguiente.transicion === 'iniciar')
+    return <IniciarTitulacion periodo={periodo} bloqueo={bloqueo} />
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" size="sm">
+          {siguiente.label}
+        </Button>
+      }
+      titulo={`${siguiente.label}: ${periodo.codigo}`}
+      descripcion={`El período pasará a «${ESTADO_PERIODO[siguiente.estado].label}».`}
+      onConfirm={() => cambiar.mutateAsync({ id: periodo.id, estado: siguiente.estado })}
+    >
+      <AvisoBloqueo motivo={bloqueo} />
+    </ConfirmDialog>
   )
 }
 
@@ -305,7 +372,6 @@ function SedePat({ periodo }: { periodo: PeriodoTitulacion }) {
 
 export default function Periodos() {
   const query = usePeriodos()
-  const cambiar = useCambiarEstadoPeriodo()
   const [editando, setEditando] = useState<PeriodoTitulacion | null | 'nuevo'>(null)
 
   const columnas: ColumnDef<PeriodoTitulacion>[] = [
@@ -349,22 +415,9 @@ export default function Periodos() {
         return (
           <div className="flex flex-wrap justify-end gap-1">
             {p.estado !== 'ARCHIVADO' && <SedePat periodo={p} />}
-            {(SIGUIENTE[p.estado] ?? []).map((s) => {
-              if (s.estado === 'EN_CURSO') return <IniciarTitulacion key={s.estado} periodo={p} />
-              return (
-                <ConfirmDialog
-                  key={s.estado}
-                  trigger={
-                    <Button variant="outline" size="sm">
-                      {s.label}
-                    </Button>
-                  }
-                  titulo={`${s.label}: ${p.codigo}`}
-                  descripcion={`El período pasará a «${ESTADO_PERIODO[s.estado].label}».`}
-                  onConfirm={() => cambiar.mutateAsync({ id: p.id, estado: s.estado })}
-                />
-              )
-            })}
+            {(SIGUIENTE[p.estado] ?? []).map((s) => (
+              <BotonTransicion key={s.estado} periodo={p} siguiente={s} />
+            ))}
             {p.estado !== 'ARCHIVADO' && <ArchivarPeriodo periodo={p} />}
             {p.estado !== 'ARCHIVADO' && (
               <Button
@@ -386,7 +439,7 @@ export default function Periodos() {
     <>
       <PageHeader
         titulo="Períodos de titulación"
-        descripcion="Fechas de postulación, inicio de titulación y estado de cada período. La postulación se abre y se cierra automáticamente según sus fechas; iniciar la titulación y archivar son acciones manuales."
+        descripcion="Fechas de postulación, inicio de titulación y estado de cada período. La postulación se abre y se cierra automáticamente según sus fechas; iniciar la titulación y archivar son acciones manuales. Una transición cuya fecha aún no llega puede forzarse indicando el motivo."
         acciones={
           <Button onClick={() => setEditando('nuevo')}>
             <PlusIcon /> Nuevo período
