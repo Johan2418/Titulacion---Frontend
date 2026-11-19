@@ -23,6 +23,7 @@ const ENTIDADES = [
   ['periodo_titulacion', 'Período'],
   ['estudiante_habilitado', 'Habilitación / ingreso'],
   ['tema', 'Tema'],
+  ['programa', 'Programa'],
   ['grupo', 'Grupo'],
   ['invitacion', 'Invitación'],
   ['postulacion', 'Postulación'],

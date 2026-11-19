@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@/auth/AuthProvider'
 import type { PeriodoTitulacion } from '@/types/dominio'
 import { usePeriodos } from './api'
 
@@ -24,7 +25,11 @@ const PRIORIDAD = [
 
 /** Contexto global de período: la mayoría de vistas dependen del período seleccionado. */
 export function PeriodoProvider({ children }: { children: React.ReactNode }) {
-  const { data: periodos = [], isPending } = usePeriodos()
+  const { usuario } = useAuth()
+  // el COORDINADOR no trabaja con períodos (el backend le responde 403)
+  const conPeriodos = usuario?.rol !== 'COORDINADOR'
+  const { data: periodos = [], isPending: pendiente } = usePeriodos(conPeriodos)
+  const isPending = conPeriodos && pendiente
   const [seleccion, setSeleccion] = useState<string | null>(() => {
     try {
       return localStorage.getItem(CLAVE)

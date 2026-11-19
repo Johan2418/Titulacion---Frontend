@@ -9,7 +9,8 @@ export type UUID = string
 export type ISODate = string
 
 // ───────────── Enums ─────────────
-export const ROLES = ['ESTUDIANTE', 'DOCENTE', 'ADMIN'] as const
+/** COORDINADOR (bloque 4): gestiona los programas de temas de los que es responsable. */
+export const ROLES = ['ESTUDIANTE', 'DOCENTE', 'ADMIN', 'COORDINADOR'] as const
 export type Rol = (typeof ROLES)[number]
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO'
 
@@ -284,6 +285,30 @@ export interface Tema {
   programaId?: UUID | null
   programa?: { id: UUID; nombre: string } | null
   categoria?: string | null
+}
+
+/** Programa de temas de una carrera (bloque 4) con un único responsable. */
+export interface Programa {
+  id: UUID
+  nombre: string
+  descripcion: string | null
+  carreraId: UUID
+  carrera: CarreraResumen
+  responsableDocenteId: UUID | null
+  responsableUsuarioId: UUID | null
+  responsable: {
+    tipo: 'DOCENTE' | 'COORDINADOR'
+    /** id del perfil docente o de la cuenta COORDINADOR */
+    id: UUID
+    nombres: string
+    apellidos: string
+  }
+  maxTemas: number
+  /** Temas no RETIRADOS: cuentan para `maxTemas`. */
+  temasRegistrados: number
+  activo: boolean
+  creadoEn: ISODate
+  actualizadoEn: ISODate
 }
 
 export interface TemaHistorial {

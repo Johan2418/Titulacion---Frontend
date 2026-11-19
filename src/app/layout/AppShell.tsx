@@ -81,6 +81,7 @@ function Sidebar({ onNavegar }: { onNavegar?: () => void }) {
 function SelectorPeriodo() {
   const usuario = useUsuario()
   const { periodos, periodo, seleccionar } = usePeriodo()
+  if (usuario.rol === 'COORDINADOR') return null
   if (!periodo) return <span className="text-sm text-muted-foreground">Sin período activo</span>
   if (usuario.rol !== 'ADMIN')
     return (

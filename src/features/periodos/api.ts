@@ -37,7 +37,9 @@ export const periodoVigente = (periodos: PeriodoTitulacion[]) =>
 
 const listarPeriodos = () => api.todas<PeriodoTitulacion>('/periodos')
 
-export const usePeriodos = () => useQuery({ queryKey: K.periodos, queryFn: listarPeriodos })
+/** `enabled=false` para roles sin acceso a GET /periodos (COORDINADOR responde 403). */
+export const usePeriodos = (enabled = true) =>
+  useQuery({ queryKey: K.periodos, queryFn: listarPeriodos, enabled })
 
 export const usePeriodoActual = () =>
   useQuery({

@@ -10,6 +10,8 @@ export const K = {
   habilitados: ['habilitados'] as const,
   lotes: ['lotes'] as const,
   temas: ['temas'] as const,
+  programas: ['programas'] as const,
+  usuarios: ['usuarios'] as const,
   grupos: ['grupos'] as const,
   invitaciones: ['invitaciones'] as const,
   postulaciones: ['postulaciones'] as const,

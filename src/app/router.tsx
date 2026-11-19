@@ -81,6 +81,15 @@ export const rutas = [
                 ],
               },
               {
+                // bloque 4: el coordinador gestiona sus programas y los temas dentro de ellos
+                path: 'coordinador',
+                element: <RoleGuard roles={['COORDINADOR']} />,
+                children: [
+                  { index: true, element: perezosa(() => import('@/pages/admin/Programas')) },
+                  { path: 'temas', element: perezosa(() => import('@/pages/admin/Temas')) },
+                ],
+              },
+              {
                 path: 'admin',
                 element: <RoleGuard roles={['ADMIN']} />,
                 children: [
@@ -93,6 +102,7 @@ export const rutas = [
                   { path: 'docentes', element: perezosa(() => import('@/pages/admin/Docentes')) },
                   { path: 'lineas', element: perezosa(() => import('@/pages/admin/Lineas')) },
                   { path: 'carga', element: perezosa(() => import('@/pages/admin/CargaTutorial')) },
+                  { path: 'programas', element: perezosa(() => import('@/pages/admin/Programas')) },
                   { path: 'temas', element: perezosa(() => import('@/pages/admin/Temas')) },
                   {
                     path: 'temas/:id',

@@ -13,6 +13,7 @@ import {
   HomeIcon,
   LayersIcon,
   ListChecksIcon,
+  LibraryIcon,
   type LucideIcon,
   SendIcon,
   UserCheckIcon,
@@ -52,6 +53,14 @@ export const NAVEGACION: Record<Rol, SeccionNav[]> = {
       ],
     },
   ],
+  COORDINADOR: [
+    {
+      items: [
+        { to: '/coordinador', label: 'Programas', icono: LibraryIcon, fin: true },
+        { to: '/coordinador/temas', label: 'Banco de temas', icono: BookOpenIcon },
+      ],
+    },
+  ],
   ADMIN: [
     { items: [{ to: '/admin', label: 'Panel', icono: HomeIcon, fin: true }] },
     {
@@ -67,6 +76,7 @@ export const NAVEGACION: Record<Rol, SeccionNav[]> = {
     {
       titulo: 'Proceso',
       items: [
+        { to: '/admin/programas', label: 'Programas', icono: LibraryIcon },
         { to: '/admin/temas', label: 'Temas', icono: BookOpenIcon },
         { to: '/admin/grupos', label: 'Grupos', icono: UsersIcon },
         { to: '/admin/postulaciones', label: 'Postulaciones', icono: SendIcon },

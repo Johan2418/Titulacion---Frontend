@@ -179,6 +179,7 @@ export const ROL: Mapa<Rol> = {
   ESTUDIANTE: { label: 'Estudiante', tono: 'info' },
   DOCENTE: { label: 'Docente', tono: 'success' },
   ADMIN: { label: 'Administrador', tono: 'warning' },
+  COORDINADOR: { label: 'Coordinador', tono: 'neutral' },
 }
 
 export const TIPO_REPORTE: Record<TipoReporte, string> = {
