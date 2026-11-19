@@ -94,6 +94,10 @@ export interface TemaB {
   creadoEn: ISODate
   disponible: boolean
   postulacionesAbiertas: number
+  /** Bloque 4 */
+  programaId?: UUID | null
+  programa?: { id: UUID; nombre: string } | null
+  categoria?: string | null
 }
 
 export interface TemaHistorialB {
@@ -385,6 +389,9 @@ export const tema = (t: TemaB): Tema => ({
   creadoEn: t.creadoEn,
   disponible: t.disponible,
   postulacionesAbiertas: t.postulacionesAbiertas,
+  programaId: t.programaId ?? null,
+  programa: t.programa ?? null,
+  categoria: t.categoria ?? null,
 })
 
 /** El backend guarda { anteriores, nuevos }; el front muestra { campo: { antes, despues } }. */

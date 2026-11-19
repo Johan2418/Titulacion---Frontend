@@ -14,6 +14,7 @@ export interface FiltrosBanco {
   facultadId: string
   carreraId: string
   lineaId: string
+  programaId: string
   tipo: TipoTema | ''
   estado: EstadoTema | ''
   disponible: boolean
@@ -23,6 +24,7 @@ export const FILTROS_BANCO_INICIALES: FiltrosBanco = {
   facultadId: '',
   carreraId: '',
   lineaId: '',
+  programaId: '',
   tipo: '',
   estado: '',
   disponible: false,
@@ -38,6 +40,7 @@ export const filtrosTemaDesdeBanco = (f: FiltrosBanco): FiltrosTema => ({
   tipo: f.tipo,
   estado: f.estado,
   disponible: f.disponible || undefined,
+  programaId: f.programaId || undefined,
 })
 
 /** Filtros presentacionales del banco de temas (facultad, carrera, línea, tipo, estado y disponibilidad). */
@@ -47,6 +50,7 @@ export function FiltrosBancoTemas({
   facultades,
   carreras,
   lineas,
+  programas,
 }: {
   valores: FiltrosBanco
   onChange: (valores: FiltrosBanco) => void
@@ -54,6 +58,8 @@ export function FiltrosBancoTemas({
   /** Cada carrera indica su facultad para poder acotar la lista al elegir una facultad. */
   carreras: OpcionCarreraFacultad[]
   lineas: Opcion[]
+  /** Bloque 4: si se indica, agrega el filtro por programa. */
+  programas?: Opcion[]
 }) {
   return (
     <>
@@ -87,6 +93,16 @@ export function FiltrosBancoTemas({
         todos="Todas las líneas"
         opciones={lineas}
       />
+      {programas && (
+        <SelectSimple
+          aria-label="Filtrar por programa"
+          className="sm:w-56"
+          value={valores.programaId}
+          onChange={(v) => onChange({ ...valores, programaId: v })}
+          todos="Todos los programas"
+          opciones={programas}
+        />
+      )}
       <SelectSimple
         aria-label="Filtrar por tipo"
         className="sm:w-48"

@@ -97,6 +97,18 @@ function DetalleTemaContenido({ id }: { id: string }) {
                   <div>
                     <dt className="text-muted-foreground">Línea de investigación</dt>
                     <dd className="font-medium">{t.linea.nombre}</dd>
+                    {t.programa && (
+                      <>
+                        <dt className="text-muted-foreground">Programa</dt>
+                        <dd className="font-medium">{t.programa.nombre}</dd>
+                      </>
+                    )}
+                    {t.categoria && (
+                      <>
+                        <dt className="text-muted-foreground">Categoría</dt>
+                        <dd className="font-medium">{t.categoria}</dd>
+                      </>
+                    )}
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Docente proponente</dt>

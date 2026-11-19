@@ -114,6 +114,12 @@ export default function CatalogoTemas() {
                       <CardDescription>
                         Propuesto por {nombreCompleto(t.docenteProponente)}
                       </CardDescription>
+                      {t.programa && (
+                        <p className="text-xs text-muted-foreground">
+                          Programa: {t.programa.nombre}
+                          {t.categoria && ` · ${t.categoria}`}
+                        </p>
+                      )}
                     </CardHeader>
                     <CardContent className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1 whitespace-nowrap">
