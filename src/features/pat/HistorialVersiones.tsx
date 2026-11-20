@@ -4,7 +4,7 @@ import { Vacio } from '@/components/Estados'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatFechaHora } from '@/lib/fechas'
-import { ESTADO_PAT } from '@/lib/estados'
+import { ESTADO_PAT, ORIGEN_PAT } from '@/lib/estados'
 import { mensajeError } from '@/lib/errores'
 import { formatoBytes, nombreCompleto } from '@/lib/utils'
 import type { DocumentoPat } from '@/types/dominio'
@@ -41,6 +41,7 @@ export function HistorialVersionesPat({ documentos }: { documentos: DocumentoPat
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">Versión {d.version}</p>
                   <StatusBadge mapa={ESTADO_PAT} valor={d.estado} />
+                  <StatusBadge mapa={ORIGEN_PAT} valor={d.origen} />
                   <Button
                     variant="ghost"
                     size="sm"

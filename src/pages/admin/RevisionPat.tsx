@@ -31,7 +31,7 @@ import { MAX_OBSERVACIONES_PAT, revisionSchema, type RevisionForm } from '@/feat
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { mensajeError } from '@/lib/errores'
 import { formatFechaHora } from '@/lib/fechas'
-import { ESTADO_PAT, opciones } from '@/lib/estados'
+import { ESTADO_PAT, ORIGEN_PAT, opciones } from '@/lib/estados'
 import { formatoBytes, nombreCompleto } from '@/lib/utils'
 import type { DocumentoPat, EstadoDocumentoPat } from '@/types/dominio'
 
@@ -52,6 +52,9 @@ function Revisar({ doc, onClose }: { doc: DocumentoPat; onClose: () => void }) {
           <DialogDescription>
             {doc.tema?.titulo} · {doc.integrantes?.map(nombreCompleto).join(', ')}
           </DialogDescription>
+          <div>
+            <StatusBadge mapa={ORIGEN_PAT} valor={doc.origen} />
+          </div>
         </DialogHeader>
         <div className="grid gap-6 md:grid-cols-2">
           <form
@@ -149,6 +152,16 @@ export default function RevisionPat() {
       accessorFn: (d) => d.documento?.fechaCarga ?? '',
       cell: ({ row }) =>
         row.original.documento ? formatFechaHora(row.original.documento.fechaCarga) : '—',
+    },
+    {
+      header: 'Origen',
+      accessorFn: (d) => (d.documento ? ORIGEN_PAT[d.documento.origen].label : ''),
+      cell: ({ row }) =>
+        row.original.documento ? (
+          <StatusBadge mapa={ORIGEN_PAT} valor={row.original.documento.origen} />
+        ) : (
+          '—'
+        ),
     },
     { header: 'Formato', accessorFn: (d) => d.documento?.formato ?? '—' },
     {

@@ -92,6 +92,7 @@ export const RESULTADOS_REVISION = ['APROBADO', 'OBSERVADO', 'RECHAZADO'] as con
 export type ResultadoRevision = (typeof RESULTADOS_REVISION)[number]
 /** Estado derivado del documento: PENDIENTE si aún no tiene revisión. */
 export type EstadoDocumentoPat = 'PENDIENTE' | ResultadoRevision
+export type OrigenDocumentoPat = 'GENERADO' | 'FIRMADO'
 
 export const TIPOS_REPORTE = [
   'ESTUDIANTES',
@@ -521,6 +522,8 @@ export interface DocumentoPat {
   fechaCarga: ISODate
   estado: EstadoDocumentoPat
   revision?: RevisionPat | null
+  /** GENERADO: entrega directa del PDF generado sin firma; FIRMADO: PDF firmado cargado. */
+  origen: OrigenDocumentoPat
   /** Contexto para bandejas de revisión */
   tema?: TemaResumen
   integrantes?: EstudianteResumen[]

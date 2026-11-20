@@ -274,6 +274,9 @@ export interface DocumentoPatB {
   revision: DocumentoPat['estado']
   detalleRevision: RevisionB | null
   cargador: PersonaB
+  /** Ausente en respuestas anteriores al PAT automático: se trata como FIRMADO. */
+  origen?: DocumentoPat['origen']
+  firmado?: boolean
 }
 
 export interface UrlFirmadaB {
@@ -612,6 +615,7 @@ export const documentoPat = (d: DocumentoPatB): DocumentoPat => ({
   fechaCarga: d.fechaCarga,
   estado: d.revision,
   revision: d.detalleRevision ? revision(d.detalleRevision) : null,
+  origen: d.origen ?? 'FIRMADO',
 })
 
 // ── Auditoría ──
