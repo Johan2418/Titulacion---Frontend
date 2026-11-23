@@ -302,7 +302,11 @@ export default function Habilitados() {
   useLotes({ tipo: 'ESTUDIANTES', periodoId })
   const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [estudianteClave, setEstudianteClave] = useState<EstudianteHabilitado | null>(null)
-  const [claveTemporal, setClaveTemporal] = useState<{ clave_temporal: string; expira_en: string; regenerada: boolean } | null>(null)
+  const [claveTemporal, setClaveTemporal] = useState<{
+    clave_temporal: string
+    expira_en: string
+    regenerada: boolean
+  } | null>(null)
   const [cargandoClave, setCargandoClave] = useState(false)
   const consultaClaveId = useRef(0)
   const [condicion, setCondicion] = useState('')
@@ -525,30 +529,53 @@ export default function Habilitados() {
       <Dialog open={!!estudianteClave} onOpenChange={(open) => !open && cerrarClaveTemporal()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Clave temporal de {estudianteClave ? nombreCompleto(estudianteClave.estudiante) : 'estudiante'}</DialogTitle>
+            <DialogTitle>
+              Clave temporal de{' '}
+              {estudianteClave ? nombreCompleto(estudianteClave.estudiante) : 'estudiante'}
+            </DialogTitle>
             <DialogDescription>
-              Compártala únicamente con el estudiante por un canal seguro. En su primer acceso deberá crear una contraseña personal.
+              Compártala únicamente con el estudiante por un canal seguro. En su primer acceso
+              deberá crear una contraseña personal.
             </DialogDescription>
           </DialogHeader>
           {cargandoClave ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircleIcon className="animate-spin" /> Consultando la clave temporal…</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircleIcon className="animate-spin" /> Consultando la clave temporal…
+            </div>
           ) : claveTemporal ? (
             <div className="space-y-3">
               <div className="flex gap-2">
-                <Input aria-label="Clave temporal" readOnly value={claveTemporal.clave_temporal} autoComplete="off" />
+                <Input
+                  aria-label="Clave temporal"
+                  readOnly
+                  value={claveTemporal.clave_temporal}
+                  autoComplete="off"
+                />
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => void navigator.clipboard.writeText(claveTemporal.clave_temporal).then(() => toast.success('Clave temporal copiada.')).catch(() => toast.error('No se pudo copiar la clave temporal.'))}
-                ><CopyIcon /> Copiar</Button>
+                  onClick={() =>
+                    void navigator.clipboard
+                      .writeText(claveTemporal.clave_temporal)
+                      .then(() => toast.success('Clave temporal copiada.'))
+                      .catch(() => toast.error('No se pudo copiar la clave temporal.'))
+                  }
+                >
+                  <CopyIcon /> Copiar
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {claveTemporal.regenerada ? 'Se generó una nueva clave y se envió al correo institucional.' : 'Clave vigente.'} Vence el {formatFechaHora(claveTemporal.expira_en)}.
+                {claveTemporal.regenerada
+                  ? 'Se generó una nueva clave y se envió al correo institucional.'
+                  : 'Clave vigente.'}{' '}
+                Vence el {formatFechaHora(claveTemporal.expira_en)}.
               </p>
             </div>
           ) : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={cerrarClaveTemporal}>Cerrar</Button>
+            <Button type="button" variant="outline" onClick={cerrarClaveTemporal}>
+              Cerrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

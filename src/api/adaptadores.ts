@@ -73,7 +73,12 @@ export interface HabilitadoB extends Omit<
   periodoId: UUID
   estudianteId: UUID
   /** Correo, cédula, carrera y nivel llegan en las respuestas para ADMIN o el propio estudiante. */
-  estudiante: PersonaB & { cedula?: string; carrera?: CarreraResumen; nivel?: number; requiereCambioClave?: boolean }
+  estudiante: PersonaB & {
+    cedula?: string
+    carrera?: CarreraResumen
+    nivel?: number
+    requiereCambioClave?: boolean
+  }
   resueltoPorId: UUID | null
   resueltoPor?: PersonaB | null
 }
