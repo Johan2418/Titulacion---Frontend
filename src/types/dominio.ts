@@ -225,7 +225,7 @@ export interface LineaInvestigacion {
 export interface EstudianteHabilitado {
   id: UUID
   periodoId: UUID
-  estudiante: EstudianteResumen & { carrera: CarreraResumen; nivel: number }
+  estudiante: EstudianteResumen & { carrera: CarreraResumen; nivel: number; requiereCambioClave?: boolean }
   origen: OrigenHabilitacion
   loteImportacionId?: UUID | null
   estado: EstadoHabilitacion

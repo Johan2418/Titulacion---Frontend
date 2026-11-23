@@ -73,7 +73,7 @@ export interface HabilitadoB extends Omit<
   periodoId: UUID
   estudianteId: UUID
   /** Correo, cédula, carrera y nivel llegan en las respuestas para ADMIN o el propio estudiante. */
-  estudiante: PersonaB & { cedula?: string; carrera?: CarreraResumen; nivel?: number }
+  estudiante: PersonaB & { cedula?: string; carrera?: CarreraResumen; nivel?: number; requiereCambioClave?: boolean }
   resueltoPorId: UUID | null
   resueltoPor?: PersonaB | null
 }
@@ -364,6 +364,7 @@ export const habilitado = (h: HabilitadoB): EstudianteHabilitado => {
       cedula: h.estudiante.cedula ?? '',
       carrera: h.estudiante.carrera ?? { id: '', nombre: '' },
       nivel: h.estudiante.nivel ?? 0,
+      requiereCambioClave: h.estudiante.requiereCambioClave,
     },
     origen: h.origen,
     loteImportacionId: h.loteImportacionId,

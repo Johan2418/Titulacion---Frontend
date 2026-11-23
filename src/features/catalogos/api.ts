@@ -182,6 +182,19 @@ export const useHabilitados = (pid?: string) =>
     enabled: !!pid,
   })
 
+export interface ClaveTemporalHabilitado {
+  clave_temporal: string
+  expira_en: string
+  regenerada: boolean
+}
+
+/** La respuesta sensible se mantiene en el componente, nunca en la caché de React Query. */
+export const consultarClaveTemporal = (periodoId: string, habilitacionId: string) =>
+  api.post<ClaveTemporalHabilitado>(
+    `/periodos/${periodoId}/habilitados/${habilitacionId}/clave-temporal`,
+    {},
+  )
+
 /** RF-02: compañeros habilitados y sin grupo que el estudiante puede invitar (solo id y nombre). */
 export const useCandidatosInvitacion = (pid?: string) =>
   useQuery({

@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
   AlertTriangleIcon,
+  CopyIcon,
   DownloadIcon,
+  KeyRoundIcon,
+  LoaderCircleIcon,
   PencilIcon,
   PlusIcon,
   ScaleIcon,
@@ -29,6 +32,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   descargarPlantillaEstudiantes,
   useActualizarHabilitado,
+  consultarClaveTemporal,
   useEstudiantes,
   useHabilitados,
   useHabilitar,
@@ -297,6 +301,10 @@ export default function Habilitados() {
   // sigue el lote desde la página para refrescar la tabla aunque el diálogo se cierre
   useLotes({ tipo: 'ESTUDIANTES', periodoId })
   const [dialogo, setDialogo] = useState<Dialogo>(null)
+  const [estudianteClave, setEstudianteClave] = useState<EstudianteHabilitado | null>(null)
+  const [claveTemporal, setClaveTemporal] = useState<{ clave_temporal: string; expira_en: string; regenerada: boolean } | null>(null)
+  const [cargandoClave, setCargandoClave] = useState(false)
+  const consultaClaveId = useRef(0)
   const [condicion, setCondicion] = useState('')
   const [situacion, setSituacion] = useState('')
   const [carreraId, setCarreraId] = useState('')
@@ -304,6 +312,32 @@ export default function Habilitados() {
   const carreras = opcionesCarreras(carrerasDeFacultad(facultades.data, periodo?.facultadId))
   // el backend solo admite resolver ingresos antes de iniciar la titulación
   const puedeResolver = !!periodo && ESTADOS_RESOLUCION.includes(periodo.estado)
+
+  const mostrarClaveTemporal = async (h: EstudianteHabilitado) => {
+    if (!periodoId) return
+    const consultaId = ++consultaClaveId.current
+    setEstudianteClave(h)
+    setClaveTemporal(null)
+    setCargandoClave(true)
+    try {
+      const respuesta = await consultarClaveTemporal(periodoId, h.id)
+      if (consultaClaveId.current === consultaId) setClaveTemporal(respuesta)
+    } catch (error) {
+      if (consultaClaveId.current === consultaId) {
+        toast.error(mensajeError(error))
+        setEstudianteClave(null)
+      }
+    } finally {
+      if (consultaClaveId.current === consultaId) setCargandoClave(false)
+    }
+  }
+
+  const cerrarClaveTemporal = () => {
+    consultaClaveId.current += 1
+    setEstudianteClave(null)
+    setClaveTemporal(null)
+    setCargandoClave(false)
+  }
 
   const columnas: ColumnDef<EstudianteHabilitado>[] = [
     {
@@ -386,6 +420,16 @@ export default function Habilitados() {
           >
             <PencilIcon />
           </Button>
+          {row.original.estudiante.requiereCambioClave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void mostrarClaveTemporal(row.original)}
+              aria-label={`Ver clave temporal de ${nombreCompleto(row.original.estudiante)}`}
+            >
+              <KeyRoundIcon /> Clave temporal
+            </Button>
+          )}
         </div>
       ),
     },
@@ -476,6 +520,36 @@ export default function Habilitados() {
           {dialogo?.tipo === 'nuevo' && <HabilitarManual onClose={cerrar} />}
           {dialogo?.tipo === 'editar' && <EditarHabilitado h={dialogo.h} onClose={cerrar} />}
           {dialogo?.tipo === 'resolver' && <ResolverIngreso h={dialogo.h} onClose={cerrar} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!estudianteClave} onOpenChange={(open) => !open && cerrarClaveTemporal()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clave temporal de {estudianteClave ? nombreCompleto(estudianteClave.estudiante) : 'estudiante'}</DialogTitle>
+            <DialogDescription>
+              Compártala únicamente con el estudiante por un canal seguro. En su primer acceso deberá crear una contraseña personal.
+            </DialogDescription>
+          </DialogHeader>
+          {cargandoClave ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircleIcon className="animate-spin" /> Consultando la clave temporal…</div>
+          ) : claveTemporal ? (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input aria-label="Clave temporal" readOnly value={claveTemporal.clave_temporal} autoComplete="off" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void navigator.clipboard.writeText(claveTemporal.clave_temporal).then(() => toast.success('Clave temporal copiada.')).catch(() => toast.error('No se pudo copiar la clave temporal.'))}
+                ><CopyIcon /> Copiar</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {claveTemporal.regenerada ? 'Se generó una nueva clave y se envió al correo institucional.' : 'Clave vigente.'} Vence el {formatFechaHora(claveTemporal.expira_en)}.
+              </p>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={cerrarClaveTemporal}>Cerrar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <ImportarArchivo
