@@ -27,10 +27,15 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   useAsignarTutorCandidato,
+  useConfirmarPatInverso,
+  useEntregarPatFirmado,
   useEquipo,
+  useGenerarPatEstudiante,
+  usePrepararPatInverso,
   type CandidatoTutor,
   type Equipo,
   type IntegranteEquipo,
+  type VistaPatInverso,
 } from '@/features/equipos/api'
 import { formatFechaHora } from '@/lib/fechas'
 import {
@@ -215,7 +220,140 @@ const marca = (ok: boolean, si: string, no: string) => (
 )
 
 /** Sección PAT por integrante. La carga del Word del PAT (pieza B) se incorporará aquí. */
-function PatIntegrante({ integrante }: { integrante: IntegranteEquipo }) {
+function CargaPatInverso({
+  equipoId,
+  integrante,
+  candidatos,
+}: {
+  equipoId: Equipo['id']
+  integrante: IntegranteEquipo
+  candidatos: CandidatoTutor[]
+}) {
+  const preparar = usePrepararPatInverso(equipoId, integrante.estudianteId)
+  const confirmar = useConfirmarPatInverso(equipoId, integrante.estudianteId)
+  const generar = useGenerarPatEstudiante(equipoId, integrante.estudianteId)
+  const entregar = useEntregarPatFirmado(equipoId, integrante.estudianteId)
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [pdf, setPdf] = useState<File | null>(null)
+  const [candidatoId, setCandidatoId] = useState('')
+  const vista = preparar.data
+  const generacionId = generar.data?.id ?? integrante.pat.ultimaGeneracion?.id
+  const sinCoincidencia = vista?.tutor.confianza === 'nula'
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(evento) => {
+        evento.preventDefault()
+        if (archivo) preparar.mutate(archivo)
+      }}
+    >
+      <label className="block text-xs font-medium" htmlFor={`pat-word-${integrante.estudianteId}`}>
+        Word del PAT de {nombreCompleto(integrante)}
+      </label>
+      <input
+        id={`pat-word-${integrante.estudianteId}`}
+        type="file"
+        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        className="block w-full text-xs"
+        onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+      />
+      <Button type="submit" size="sm" disabled={!archivo || preparar.isPending}>
+        Leer Word
+      </Button>
+      {vista && <VistaPrevia vista={vista} />}
+      {vista && sinCoincidencia && (
+        <label className="block text-xs">
+          Elige el tutor candidato
+          <select
+            className="mt-1 block w-full rounded-md border bg-background px-2 py-1"
+            value={candidatoId}
+            onChange={(evento) => setCandidatoId(evento.target.value)}
+          >
+            <option value="">Selecciona un candidato</option>
+            {candidatos.map((candidato) => (
+              <option key={candidato.id} value={candidato.id}>
+                {candidato.prioridad}. {candidato.docente.nombres} {candidato.docente.apellidos}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {vista && (
+        <Button
+          type="button"
+          size="sm"
+          disabled={!vista.puedeConfirmar || confirmar.isPending || (sinCoincidencia && !candidatoId)}
+          onClick={() =>
+            confirmar.mutate({
+              preparacionId: vista.preparacionId,
+              candidatoId: sinCoincidencia ? candidatoId : (vista.tutor.candidatoId ?? undefined),
+            })
+          }
+        >
+          Confirmar datos
+        </Button>
+      )}
+      <Button type="button" size="sm" variant="outline" disabled={generar.isPending} onClick={() => generar.mutate()}>
+        Generar PAT
+      </Button>
+      <label className="block text-xs font-medium" htmlFor={`pat-pdf-${integrante.estudianteId}`}>
+        PDF firmado de {nombreCompleto(integrante)}
+      </label>
+      <input
+        id={`pat-pdf-${integrante.estudianteId}`}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="block w-full text-xs"
+        onChange={(evento) => setPdf(evento.target.files?.[0] ?? null)}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={!pdf || !generacionId || entregar.isPending}
+        onClick={() => pdf && generacionId && entregar.mutate({ generacionId, archivo: pdf })}
+      >
+        Subir PDF firmado
+      </Button>
+    </form>
+  )
+}
+
+function VistaPrevia({ vista }: { vista: VistaPatInverso }) {
+  return (
+    <div className="space-y-1 text-xs">
+      <p>
+        Tutor del Word: {vista.extraido.tutorSolicitado || 'sin nombre'} · coincidencia {vista.tutor.confianza}
+        {vista.tutor.nombreSistema ? ` (${vista.tutor.nombreSistema})` : ''}
+      </p>
+      <p>Título en el Word: {vista.extraido.tituloProvisional}</p>
+      {vista.diferencias.length > 0 && (
+        <ul className="list-disc pl-4">
+          {vista.diferencias.map((diferencia) => (
+            <li key={`${diferencia.campo}-${diferencia.word}`}>
+              {diferencia.campo}: el Word dice «{diferencia.word}» y el sistema «{diferencia.sistema}». Se conserva el del sistema.
+            </li>
+          ))}
+        </ul>
+      )}
+      {vista.errores.length > 0 && (
+        <ul className="list-disc pl-4 text-destructive">
+          {vista.errores.map((error) => (
+            <li key={`${error.campo}-${error.mensaje}`}>{error.mensaje}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function PatIntegrante({
+  integrante,
+  equipo,
+}: {
+  integrante: IntegranteEquipo
+  equipo: Equipo
+}) {
   const { pat } = integrante
   return (
     <div
@@ -252,9 +390,7 @@ function PatIntegrante({ integrante }: { integrante: IntegranteEquipo }) {
           <Badge tono="muted">Sin entrega</Badge>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        La carga del PAT en Word (formato PAT-04-F-002) para este estudiante estará disponible aquí.
-      </p>
+      <CargaPatInverso equipoId={equipo.id} integrante={integrante} candidatos={equipo.candidatos} />
     </div>
   )
 }
@@ -282,7 +418,7 @@ function Integrantes({ equipo }: { equipo: Equipo }) {
                   <StatusBadge mapa={SITUACION_INGRESO} valor={i.situacionIngreso} />
                 )}
               </p>
-              <PatIntegrante integrante={i} />
+              <PatIntegrante integrante={i} equipo={equipo} />
             </div>
           ))
         )}

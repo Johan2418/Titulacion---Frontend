@@ -25,6 +25,10 @@ let equipo: Equipo
 vi.mock('@/features/equipos/api', () => ({
   useEquipo: () => ({ isPending: false, isError: false, data: equipo }),
   useAsignarTutorCandidato: () => ({ mutate: asignar, isPending: false }),
+  usePrepararPatInverso: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
+  useConfirmarPatInverso: () => ({ mutate: vi.fn(), isPending: false }),
+  useGenerarPatEstudiante: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
+  useEntregarPatFirmado: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 const pantalla = () =>
@@ -75,6 +79,7 @@ describe('DetalleEquipo (admin)', () => {
     const pat = screen.getByLabelText('PAT de Ana Briones')
     expect(within(pat).getByText('Datos personales registrados')).toBeInTheDocument()
     expect(within(pat).getByText('Contenido pendiente')).toBeInTheDocument()
+    expect(within(pat).getByLabelText('Word del PAT de Ana Briones')).toBeInTheDocument()
     expect(
       screen.getByText('Sin tutor vigente: confirme uno de los candidatos.'),
     ).toBeInTheDocument()

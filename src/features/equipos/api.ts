@@ -133,6 +133,86 @@ export const useCrearEquipo = () =>
       ),
   })
 
+export interface VistaPatInverso {
+  preparacionId: UUID
+  expiraEn: string
+  puedeConfirmar: boolean
+  diferencias: Array<{ campo: string; word: string; sistema: string }>
+  errores: Array<{ campo: string; mensaje: string }>
+  tutor: {
+    candidatoId: UUID | null
+    confianza: 'alta' | 'media' | 'nula'
+    nombreWord: string
+    nombreSistema: string | null
+  }
+  integrantesSinCoincidencia: string[]
+  extraido: {
+    cedula: string
+    nombresApellidos: string
+    tituloProvisional: string
+    tutorSolicitado: string
+    modalidadDetalle: string
+    problematica: string
+  }
+}
+
+export const usePrepararPatInverso = (equipoId: UUID, estudianteId: UUID) => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: (archivo: File) => {
+      const cuerpo = new FormData()
+      cuerpo.append('archivo', archivo)
+      return api.post<VistaPatInverso>(
+        `/periodos/${periodoId}/equipos/${equipoId}/integrantes/${estudianteId}/pat-inverso`,
+        cuerpo,
+      )
+    },
+    exito: 'Word leído. Revisa la vista previa antes de confirmar.',
+  })
+}
+
+export const useConfirmarPatInverso = (equipoId: UUID, estudianteId: UUID) => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: ({ preparacionId, candidatoId }: { preparacionId: UUID; candidatoId?: UUID }) =>
+      api.post<{ confirmada: boolean }>(
+        `/periodos/${periodoId}/equipos/${equipoId}/integrantes/${estudianteId}/pat-inverso/${preparacionId}/confirmar`,
+        { candidatoId },
+      ),
+    invalida: FLUJO,
+    exito: 'Datos del PAT guardados.',
+  })
+}
+
+export const useEntregarPatFirmado = (equipoId: UUID, estudianteId: UUID) => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: ({ generacionId, archivo }: { generacionId: UUID; archivo: File }) => {
+      const cuerpo = new FormData()
+      cuerpo.append('generacion_id', generacionId)
+      cuerpo.append('archivo', archivo)
+      return api.post(
+        `/periodos/${periodoId}/equipos/${equipoId}/integrantes/${estudianteId}/documento-pat`,
+        cuerpo,
+      )
+    },
+    invalida: FLUJO,
+    exito: 'PDF firmado cargado.',
+  })
+}
+
+export const useGenerarPatEstudiante = (equipoId: UUID, estudianteId: UUID) => {
+  const { periodoId } = usePeriodo()
+  return useMutacion({
+    fn: () =>
+      api.post<{ id: UUID; estado: string }>(
+        `/periodos/${periodoId}/equipos/${equipoId}/integrantes/${estudianteId}/generar-pat`,
+      ),
+    invalida: FLUJO,
+    exito: 'Generación del PAT encolada.',
+  })
+}
+
 export const useAsignarTutorCandidato = () => {
   const { periodoId } = usePeriodo()
   return useMutacion({
