@@ -303,6 +303,15 @@ export async function descargarGeneracionPat(pid: string, aid: string, id: strin
   descargarUrl(r.url, 'PAT-sin-firma.pdf')
 }
 
+/** Word institucional PAT-04-F-002; el nombre (con la cédula) lo fija el backend en la descarga. */
+export async function descargarGeneracionPatWord(pid: string, aid: string, id: string) {
+  const r = await api.get<UrlFirmadaB>(
+    `${rutaPat(pid, aid)}/generaciones/${id}/descarga`,
+    { formato: 'docx' },
+  )
+  descargarUrl(r.url)
+}
+
 export interface UltimaPatB {
   asignacionTemaId: string
   tema: { id: string; titulo: string }

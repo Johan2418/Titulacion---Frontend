@@ -2,7 +2,12 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GeneracionPatB, ResumenPatB } from '@/features/pat/api'
+import {
+  descargarGeneracionPat,
+  descargarGeneracionPatWord,
+  type GeneracionPatB,
+  type ResumenPatB,
+} from '@/features/pat/api'
 import type { DocumentoPat } from '@/types/dominio'
 import Pat from './Pat'
 
@@ -42,6 +47,7 @@ vi.mock('@/features/pat/api', async (original) => ({
   useEntregarGeneracionPat: () => ({ mutateAsync: m.entregar }),
   useSubirPat: () => ({ mutate: m.subir, isPending: false }),
   descargarGeneracionPat: vi.fn(),
+  descargarGeneracionPatWord: vi.fn(),
   descargarDocumentoPat: vi.fn(),
 }))
 
@@ -251,6 +257,19 @@ describe('Asistente Entregar PAT', () => {
     expect(dialogo).toHaveTextContent(/El administrador lo revisará/)
     await user.click(within(dialogo).getByRole('button', { name: 'Entregar' }))
     expect(m.entregar).toHaveBeenCalledWith('g1')
+  })
+
+  it('descarga el PDF o el Word institucional de la generación lista', async () => {
+    m.resumen = listo()
+    m.generaciones = [generacion()]
+    vi.mocked(descargarGeneracionPat).mockResolvedValue(undefined)
+    vi.mocked(descargarGeneracionPatWord).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderPat()
+    await user.click(screen.getByRole('button', { name: 'Descargar Word' }))
+    expect(descargarGeneracionPatWord).toHaveBeenCalledWith('p1', 'a1', 'g1')
+    await user.click(screen.getByRole('button', { name: 'Descargar para imprimir y firmar' }))
+    expect(descargarGeneracionPat).toHaveBeenCalledWith('p1', 'a1', 'g1')
   })
 
   it('muestra la entrega pendiente de revisión y no permite otra', () => {

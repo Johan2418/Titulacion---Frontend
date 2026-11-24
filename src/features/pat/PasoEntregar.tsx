@@ -15,6 +15,7 @@ import { formatFechaHora } from '@/lib/fechas'
 import type { DocumentoPat } from '@/types/dominio'
 import {
   descargarGeneracionPat,
+  descargarGeneracionPatWord,
   generacionActiva,
   useDocumentosPat,
   useEntregarGeneracionPat,
@@ -161,6 +162,16 @@ function Generacion({
           }
         >
           <DownloadIcon /> Descargar para imprimir y firmar
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() =>
+            descargarGeneracionPatWord(pid, aid, g.id).catch((e) =>
+              toast.error(mensajeErrorPat(e)),
+            )
+          }
+        >
+          <DownloadIcon /> Descargar Word
         </Button>
       </div>
       {puedeEntregar && <CargaFirmada generacionId={g.id} aid={aid} />}
