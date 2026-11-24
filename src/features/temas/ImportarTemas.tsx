@@ -9,8 +9,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { opcionesCarrerasConFacultad, useFacultades } from '@/features/academico/api'
+import { carrerasDeFacultadElegida } from '@/features/academico/facultadCarrera'
 import { ErrorCatalogo } from '@/features/academico/ErrorCatalogo'
 import { useDocentes, useLineas } from '@/features/catalogos/api'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { nombreCompleto } from '@/lib/utils'
 import { FormularioImportacionTemas } from './FormularioImportacionTemas'
 import {
@@ -30,6 +32,12 @@ export function ImportarTemas({ abierto, onClose }: { abierto: boolean; onClose:
   const facultades = useFacultades()
   const lineas = useLineas()
   const docentes = useDocentes()
+  const { periodo } = usePeriodo()
+  // solo las carreras de la facultad del período elegido (sin período: todas)
+  const carreras = carrerasDeFacultadElegida(
+    opcionesCarrerasConFacultad(facultades.data),
+    periodo?.facultadId ?? '',
+  )
   const [valores, setValores] = useState<ParametrosImportacionTemas>(
     PARAMETROS_IMPORTACION_INICIALES,
   )
@@ -68,7 +76,7 @@ export function ImportarTemas({ abierto, onClose }: { abierto: boolean; onClose:
           <FormularioImportacionTemas
             valores={valores}
             onChange={setValores}
-            carreras={opcionesCarrerasConFacultad(facultades.data)}
+            carreras={carreras}
             lineas={(lineas.data ?? [])
               .filter((l) => l.activa)
               .map((l) => ({ value: l.id, label: l.nombre }))}

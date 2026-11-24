@@ -39,6 +39,7 @@ import {
   facultadPorCarrera,
 } from '@/features/academico/facultadCarrera'
 import { ImportarArchivo } from '@/features/catalogos/ImportarArchivo'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TIPOS_IMPORTACION } from '@/lib/archivos'
 import { nombreCompleto } from '@/lib/utils'
@@ -177,6 +178,9 @@ export default function Docentes() {
   const reenviar = useReenviarAcceso()
   const facultades = useFacultades()
   const carreras = opcionesCarrerasConFacultad(facultades.data)
+  const { periodo } = usePeriodo()
+  // la importación solo ofrece las carreras de la facultad del período elegido (sin período: todas)
+  const carrerasImportacion = carrerasDeFacultadElegida(carreras, periodo?.facultadId ?? '')
   const [carreraId, setCarreraId] = useState('')
   const [facultadId, setFacultadId] = useState('')
   const carrerasVisibles = carrerasDeFacultadElegida(carreras, facultadId)
@@ -345,7 +349,7 @@ export default function Docentes() {
             </Button>
           </>
         }
-        carreras={carreras}
+        carreras={carrerasImportacion}
         catalogo={facultades}
         importar={(archivo, carrera) => importar.mutateAsync({ archivo, carreraId: carrera })}
       />

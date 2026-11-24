@@ -9,10 +9,16 @@ import { ImportarTemas } from './ImportarTemas'
 vi.mock('@/features/academico/api', async (original) => ({
   ...(await original<typeof import('@/features/academico/api')>()),
   useFacultades: () => ({
-    data: [{ id: 'f1', nombre: 'Facultad', carreras: [{ id: 'c1', nombre: 'Software' }] }],
+    data: [
+      { id: 'f1', nombre: 'Facultad', carreras: [{ id: 'c1', nombre: 'Software' }] },
+      { id: 'f2', nombre: 'Otra', carreras: [{ id: 'c2', nombre: 'Civil' }] },
+    ],
     isError: false,
     refetch: vi.fn(),
   }),
+}))
+vi.mock('@/features/periodos/PeriodoContext', () => ({
+  usePeriodo: () => ({ periodo: { id: 'p1', facultadId: 'f1' } }),
 }))
 vi.mock('@/features/catalogos/api', async (original) => ({
   ...(await original<typeof import('@/features/catalogos/api')>()),
@@ -77,6 +83,19 @@ const json = (cuerpo: unknown) =>
   })
 
 describe('ImportarTemas', () => {
+  it('ofrece solo las carreras de la facultad del período', async () => {
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ImportarTemas abierto onClose={vi.fn()} />
+      </QueryClientProvider>,
+    )
+    await user.click(screen.getByRole('combobox', { name: /Carrera/ }))
+    expect(
+      (await screen.findAllByRole('option')).map((o) => o.textContent),
+    ).toEqual(['Software — Facultad'])
+  })
+
   it('valida, resuelve docentes y confirma enviando lo que espera el backend', async () => {
     const respuestas = [
       json(importacion('PENDIENTE_DOCENTE')),
