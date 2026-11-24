@@ -141,8 +141,15 @@ describe('Equipos (admin): conformación', () => {
     expect(screen.getByRole('button', { name: /Conformar equipo/ })).toBeDisabled()
   })
 
-  it('no ofrece el formulario si el período no admite conformar equipos', () => {
+  it('ofrece el formulario también con el período en postulación abierta', () => {
     periodo.estado = 'POSTULACION_ABIERTA'
+    pantalla()
+    expect(screen.queryByText('El período no admite conformar equipos')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Conformar equipo/ })).toBeInTheDocument()
+  })
+
+  it('no ofrece el formulario si el período no admite conformar equipos', () => {
+    periodo.estado = 'BORRADOR'
     pantalla()
     expect(screen.getByText('El período no admite conformar equipos')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Conformar equipo/ })).not.toBeInTheDocument()

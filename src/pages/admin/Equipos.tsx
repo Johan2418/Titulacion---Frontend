@@ -22,8 +22,8 @@ import { ESTADO_ASIGNACION_TEMA, ESTADO_PERIODO, MODALIDAD } from '@/lib/estados
 import { nombreCompleto } from '@/lib/utils'
 import type { EstudianteHabilitado } from '@/types/dominio'
 
-/** Estados del período en que el backend admite conformar equipos (POSTULACION_CERRADA o EN_CURSO). */
-const ESTADOS_OPERABLES = ['POSTULACION_CERRADA', 'EN_CURSO']
+/** Estados del período en que el backend admite conformar equipos (POSTULACION_ABIERTA, POSTULACION_CERRADA o EN_CURSO). */
+const ESTADOS_OPERABLES = ['POSTULACION_ABIERTA', 'POSTULACION_CERRADA', 'EN_CURSO']
 const MAX_CANDIDATOS = 10
 
 const mover = <T,>(lista: T[], desde: number, hasta: number) => {
@@ -434,8 +434,8 @@ export default function Equipos() {
           <Alert>
             <AlertTitle>El período no admite conformar equipos</AlertTitle>
             <AlertDescription>
-              Los equipos se conforman con la postulación cerrada o durante la titulación. Cambie el
-              estado del período o seleccione otro.
+              Los equipos se conforman durante la postulación, con la postulación cerrada o durante la
+              titulación. Cambie el estado del período o seleccione otro.
             </AlertDescription>
           </Alert>
         )}
