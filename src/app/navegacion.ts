@@ -18,6 +18,7 @@ import {
   SendIcon,
   UserCheckIcon,
   UsersIcon,
+  UsersRoundIcon,
 } from 'lucide-react'
 import type { Rol } from '@/types/dominio'
 
@@ -79,6 +80,7 @@ export const NAVEGACION: Record<Rol, SeccionNav[]> = {
         { to: '/admin/programas', label: 'Programas', icono: LibraryIcon },
         { to: '/admin/temas', label: 'Temas', icono: BookOpenIcon },
         { to: '/admin/grupos', label: 'Grupos', icono: UsersIcon },
+        { to: '/admin/equipos', label: 'Equipos', icono: UsersRoundIcon },
         { to: '/admin/postulaciones', label: 'Postulaciones', icono: SendIcon },
         { to: '/admin/conflictos', label: 'Conflictos', icono: GitMergeIcon },
         { to: '/admin/asignaciones', label: 'Asignaciones y tutores', icono: ListChecksIcon },

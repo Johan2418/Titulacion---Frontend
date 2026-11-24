@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import NoEncontrado from '@/pages/comun/NoEncontrado'
 import { useUuidParam } from '@/lib/useUuidParam'
-import { AlertTriangleIcon, ArrowLeftIcon, BanIcon, StarIcon, UserCheckIcon } from 'lucide-react'
+import {
+  AlertTriangleIcon,
+  ArrowLeftIcon,
+  BanIcon,
+  StarIcon,
+  UserCheckIcon,
+  UsersIcon,
+} from 'lucide-react'
 import { Campo, SelectSimple } from '@/components/Campo'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
@@ -45,6 +52,7 @@ import {
   ESTADO_ASIGNACION_TEMA,
   ESTADO_ASIGNACION_TUTOR,
   MODALIDAD,
+  ORIGEN_ASIGNACION,
   opciones,
   TIPO_ASIGNACION_TUTOR,
 } from '@/lib/estados'
@@ -54,7 +62,8 @@ import type { AsignacionTema, CargaDocente, CausaAnulacion } from '@/types/domin
 /** RF-27, RF-28, RF-30: asignación o reemplazo de tutor con control de carga. */
 function AsignarTutor({ asignacion }: { asignacion: AsignacionTema }) {
   const { periodoId } = usePeriodo()
-  const postulacion = usePostulacion(asignacion.postulacionId)
+  // los equipos administrativos no tienen postulación ni tutores propuestos
+  const postulacion = usePostulacion(asignacion.postulacionId ?? undefined)
   const docentes = useDocentes({ habilitadoTutoria: true })
   const carga = useCargaTutorial(periodoId)
   const asignar = useAsignarTutor()
@@ -303,6 +312,9 @@ function DetalleAsignacionContenido({ id }: { id: string }) {
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge mapa={ESTADO_ASIGNACION_TEMA} valor={a.estado} />
                   <StatusBadge mapa={MODALIDAD} valor={a.modalidad} />
+                  {a.origen === 'ADMIN' && (
+                    <StatusBadge mapa={ORIGEN_ASIGNACION} valor={a.origen} />
+                  )}
                   Asignado el {formatFechaHora(a.fechaAsignacion)} por{' '}
                   {nombreCompleto(a.aprobadaPor)}
                 </span>
@@ -320,6 +332,21 @@ function DetalleAsignacionContenido({ id }: { id: string }) {
                     <AlertDescription>
                       {a.motivoAnulacion} — {nombreCompleto(a.anuladaPor)},{' '}
                       {formatFechaHora(a.fechaAnulacion)}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {a.origen === 'ADMIN' && (
+                  <Alert>
+                    <UsersIcon />
+                    <AlertTitle>Equipo conformado por la administración</AlertTitle>
+                    <AlertDescription>
+                      <span>
+                        Sus candidatos a tutor y el estado PAT de cada integrante están en el{' '}
+                        <Link to={`/admin/equipos/${a.id}`} className="font-medium underline">
+                          detalle del equipo
+                        </Link>
+                        .
+                      </span>
                     </AlertDescription>
                   </Alert>
                 )}

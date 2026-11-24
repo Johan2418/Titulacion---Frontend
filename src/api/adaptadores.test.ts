@@ -273,6 +273,34 @@ describe('asignacionTema', () => {
       nombres: 'Bea',
       apellidos: 'Admin',
     })
+    expect(asignacionTema(b).origen).toBe('POSTULACION')
+  })
+
+  it('acepta asignaciones de equipos administrativos sin postulación', () => {
+    const b = clavesACamel<AsignacionTemaB>({
+      id: 'a2',
+      periodo_id: 'per1',
+      tema: { id: 't1', titulo: 'Tema' },
+      origen: 'ADMIN',
+      modalidad: 'GRUPAL',
+      postulacion_id: null,
+      postulacion: null,
+      grupo: { id: 'g1', nombre: 'Equipo Alfa' },
+      estudiante_id: null,
+      participantes: [],
+      aprobada_por: { id: 'u1', nombres: 'Ada', apellidos: 'Admin' },
+      estado: 'VIGENTE',
+      fecha_asignacion: '2026-11-23T00:00:00Z',
+      motivo: 'Acta',
+      causa_anulacion: null,
+      motivo_anulacion: null,
+      fecha_anulacion: null,
+    })
+    expect(asignacionTema(b)).toMatchObject({
+      origen: 'ADMIN',
+      postulacionId: null,
+      modalidad: 'GRUPAL',
+    })
   })
 })
 

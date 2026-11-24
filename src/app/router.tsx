@@ -117,6 +117,11 @@ export const rutas = [
                     element: perezosa(() => import('@/pages/admin/Conflictos')),
                   },
                   { path: 'grupos', element: perezosa(() => import('@/pages/admin/Grupos')) },
+                  { path: 'equipos', element: perezosa(() => import('@/pages/admin/Equipos')) },
+                  {
+                    path: 'equipos/:id',
+                    element: perezosa(() => import('@/pages/admin/DetalleEquipo')),
+                  },
                   {
                     path: 'asignaciones',
                     element: perezosa(() => import('@/pages/admin/Asignaciones')),

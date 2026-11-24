@@ -76,7 +76,10 @@ export type EstadoConfirmacion = (typeof ESTADOS_CONFIRMACION)[number]
 export type EstadoAsignacionTema = 'VIGENTE' | 'ANULADA'
 export type CausaAnulacion = 'INCUMPLIMIENTO_CONDICION' | 'OTRA'
 
-export type TipoAsignacionTutor = 'PROPUESTO_CONFIRMADO' | 'ASIGNADO_DIRECTO'
+export type TipoAsignacionTutor =
+  'PROPUESTO_CONFIRMADO' | 'ASIGNADO_DIRECTO' | 'CANDIDATO_CONFIRMADO'
+/** POSTULACION: postulación aceptada; ADMIN: equipo conformado por la administración (sin postulación). */
+export type OrigenAsignacion = 'POSTULACION' | 'ADMIN'
 export type EstadoAsignacionTutor = 'VIGENTE' | 'REEMPLAZADA' | 'ANULADA'
 
 export const CRITERIOS_CONFLICTO = [
@@ -440,7 +443,9 @@ export interface ConflictoAbierto {
 export interface AsignacionTema {
   id: UUID
   tema: TemaResumen
-  postulacionId: UUID
+  /** null en equipos conformados por ADMIN */
+  postulacionId: UUID | null
+  origen: OrigenAsignacion
   modalidad: Modalidad
   grupo?: Pick<Grupo, 'id' | 'nombre'> | null
   estudiante?: EstudianteResumen | null

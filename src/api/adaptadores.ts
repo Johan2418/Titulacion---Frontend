@@ -185,8 +185,11 @@ export interface AsignacionTemaB {
   id: UUID
   periodoId: UUID
   tema: { id: UUID; titulo: string }
-  postulacionId: UUID
-  postulacion: { id: UUID; modalidad: Modalidad }
+  /** null en equipos conformados por ADMIN (origen ADMIN) */
+  postulacionId: UUID | null
+  postulacion: { id: UUID; modalidad: Modalidad } | null
+  origen?: AsignacionTema['origen']
+  modalidad?: Modalidad
   grupo: { id: UUID; nombre: string } | null
   estudianteId: UUID | null
   participantes: PersonaB[]
@@ -214,7 +217,9 @@ export interface AsignacionTutorB {
   trabajo: {
     id: UUID
     tema: { id: UUID; titulo: string }
-    postulacion: { id: UUID; modalidad: Modalidad }
+    postulacion: { id: UUID; modalidad: Modalidad } | null
+    origen?: AsignacionTema['origen']
+    modalidad?: Modalidad
     grupo: { id: UUID; nombre: string } | null
     participantes: PersonaB[]
   }
@@ -513,7 +518,8 @@ export const asignacionTema = (
     id: a.id,
     tema: a.tema,
     postulacionId: a.postulacionId,
-    modalidad: a.postulacion.modalidad,
+    origen: a.origen ?? 'POSTULACION',
+    modalidad: a.modalidad ?? a.postulacion?.modalidad ?? (a.grupo ? 'GRUPAL' : 'INDIVIDUAL'),
     grupo: a.grupo,
     estudiante: a.estudianteId ? (integrantes[0] ?? null) : null,
     integrantes,
@@ -533,11 +539,15 @@ export const asignacionTema = (
 /** Para el docente, cada tutoría trae el trabajo (asignación de tema) embebido. */
 export const asignacionDesdeTutoria = (t: AsignacionTutorB): AsignacionTema => {
   const integrantes = t.trabajo.participantes.map(estudianteResumen)
-  const modalidad = t.trabajo.postulacion.modalidad
+  const modalidad =
+    t.trabajo.modalidad ??
+    t.trabajo.postulacion?.modalidad ??
+    (t.trabajo.grupo ? 'GRUPAL' : 'INDIVIDUAL')
   return {
     id: t.trabajo.id,
     tema: t.trabajo.tema,
-    postulacionId: t.trabajo.postulacion.id,
+    postulacionId: t.trabajo.postulacion?.id ?? null,
+    origen: t.trabajo.origen ?? 'POSTULACION',
     modalidad,
     grupo: t.trabajo.grupo,
     estudiante: modalidad === 'INDIVIDUAL' ? (integrantes[0] ?? null) : null,

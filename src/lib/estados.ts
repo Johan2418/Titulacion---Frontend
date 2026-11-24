@@ -17,6 +17,7 @@ import type {
   EstadoPostulacion,
   EstadoTema,
   Modalidad,
+  OrigenAsignacion,
   OrigenHabilitacion,
   Rol,
   RolEnGrupo,
@@ -148,6 +149,12 @@ export const ESTADO_ASIGNACION_TUTOR: Mapa<EstadoAsignacionTutor> = {
 export const TIPO_ASIGNACION_TUTOR: Mapa<TipoAsignacionTutor> = {
   PROPUESTO_CONFIRMADO: { label: 'Propuesto confirmado', tono: 'info' },
   ASIGNADO_DIRECTO: { label: 'Asignado directo', tono: 'neutral' },
+  CANDIDATO_CONFIRMADO: { label: 'Candidato confirmado', tono: 'info' },
+}
+
+export const ORIGEN_ASIGNACION: Mapa<OrigenAsignacion> = {
+  POSTULACION: { label: 'Postulación', tono: 'neutral' },
+  ADMIN: { label: 'Equipo administrativo', tono: 'info' },
 }
 
 export const CRITERIO_CONFLICTO: Mapa<CriterioConflicto> = {
