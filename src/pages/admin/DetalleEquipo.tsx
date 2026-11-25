@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ArrowLeftIcon, FileTextIcon, UserCheckIcon } from 'lucide-react'
+import { ArrowLeftIcon, DownloadIcon, FileTextIcon, UserCheckIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { Campo } from '@/components/Campo'
 import { ConsultaEstado, Vacio } from '@/components/Estados'
 import { PageHeader } from '@/components/PageHeader'
+import { SelectorArchivo } from '@/components/SelectorArchivo'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +33,7 @@ import {
   useConfirmarPatInverso,
   useEntregarPatFirmado,
   useEquipo,
+  descargarPatGenerado,
   useGenerarPatEstudiante,
   usePrepararPatInverso,
   type CandidatoTutor,
@@ -47,6 +51,8 @@ import {
   SITUACION_INGRESO,
   TIPO_ASIGNACION_TUTOR,
 } from '@/lib/estados'
+import { usePeriodo } from '@/features/periodos/PeriodoContext'
+import { mensajeError } from '@/lib/errores'
 import { useUuidParam } from '@/lib/useUuidParam'
 import { nombreCompleto } from '@/lib/utils'
 import NoEncontrado from '@/pages/comun/NoEncontrado'
@@ -57,6 +63,27 @@ const ESTADO_GENERACION: Record<string, string> = {
   PROCESANDO: 'Generándose',
   LISTO: 'Generado',
   FALLIDO: 'Falló la generación',
+}
+
+/** Progreso aproximado por etapa del worker: el sistema no informa un porcentaje exacto. */
+const PROGRESO_GENERACION: Record<string, number> = { EN_COLA: 15, PROCESANDO: 60, LISTO: 100, FALLIDO: 100 }
+
+function BarraGeneracion({ estado }: { estado: string }) {
+  const enCurso = estado === 'EN_COLA' || estado === 'PROCESANDO'
+  const valor = PROGRESO_GENERACION[estado] ?? 0
+  return (
+    <div className="space-y-1" role="status" aria-live="polite">
+      <div className="flex justify-between text-xs">
+        <span>{ESTADO_GENERACION[estado] ?? estado}</span>
+        <span>{valor}%</span>
+      </div>
+      <Progress
+        value={valor}
+        aria-label="Progreso de la generación del PAT"
+        className={enCurso ? 'animate-pulse' : undefined}
+      />
+    </div>
+  )
 }
 
 /** Confirmación de un candidato como tutor; si ya hay tutor vigente exige motivo (reemplazo). */
@@ -229,6 +256,7 @@ function CargaPatInverso({
   integrante: IntegranteEquipo
   candidatos: CandidatoTutor[]
 }) {
+  const { periodoId } = usePeriodo()
   const preparar = usePrepararPatInverso(equipoId, integrante.estudianteId)
   const confirmar = useConfirmarPatInverso(equipoId, integrante.estudianteId)
   const generar = useGenerarPatEstudiante(equipoId, integrante.estudianteId)
@@ -250,12 +278,11 @@ function CargaPatInverso({
       <label className="block text-xs font-medium" htmlFor={`pat-word-${integrante.estudianteId}`}>
         Word del PAT de {nombreCompleto(integrante)}
       </label>
-      <input
+      <SelectorArchivo
         id={`pat-word-${integrante.estudianteId}`}
-        type="file"
         accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        className="block w-full text-xs"
-        onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+        archivo={archivo}
+        onChange={setArchivo}
       />
       <Button type="submit" size="sm" disabled={!archivo || preparar.isPending}>
         Leer Word
@@ -296,15 +323,33 @@ function CargaPatInverso({
       <Button type="button" size="sm" variant="outline" disabled={generar.isPending} onClick={() => generar.mutate()}>
         Generar PAT
       </Button>
+      {integrante.pat.ultimaGeneracion && <BarraGeneracion estado={integrante.pat.ultimaGeneracion.estado} />}
+      {integrante.pat.ultimaGeneracion?.estado === 'LISTO' && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            descargarPatGenerado(
+              periodoId!,
+              equipoId,
+              integrante.estudianteId,
+              integrante.pat.ultimaGeneracion!.id,
+              `PAT-${integrante.matricula}.docx`,
+            ).catch((e) => toast.error(mensajeError(e)))
+          }
+        >
+          <DownloadIcon /> Descargar PAT
+        </Button>
+      )}
       <label className="block text-xs font-medium" htmlFor={`pat-pdf-${integrante.estudianteId}`}>
         PDF firmado de {nombreCompleto(integrante)}
       </label>
-      <input
+      <SelectorArchivo
         id={`pat-pdf-${integrante.estudianteId}`}
-        type="file"
         accept="application/pdf,.pdf"
-        className="block w-full text-xs"
-        onChange={(evento) => setPdf(evento.target.files?.[0] ?? null)}
+        archivo={pdf}
+        onChange={setPdf}
       />
       <Button
         type="button"
