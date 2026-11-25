@@ -23,7 +23,7 @@ export default function Pat() {
               pid={periodoId}
               aid={a.id}
               habilitado={
-                ['POSTULACION_CERRADA', 'EN_CURSO'].includes(periodo?.estado ?? '') &&
+                ['POSTULACION_ABIERTA', 'POSTULACION_CERRADA', 'EN_CURSO'].includes(periodo?.estado ?? '') &&
                 a.estado === 'VIGENTE'
               }
             />

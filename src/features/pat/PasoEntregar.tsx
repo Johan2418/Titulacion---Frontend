@@ -213,7 +213,7 @@ export function PasoEntregar({
 }: {
   pid: string
   aid: string
-  /** Período en POSTULACION_CERRADA/EN_CURSO y asignación vigente. */
+  /** Período en POSTULACION_ABIERTA/POSTULACION_CERRADA/EN_CURSO y asignación vigente. */
   habilitado: boolean
   /** Sin pendientes. */
   listo: boolean
