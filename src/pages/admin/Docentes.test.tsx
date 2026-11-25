@@ -41,6 +41,9 @@ vi.mock('@/features/academico/api', async (original) => ({
   useFacultades: () => ({ isLoading: false, isError: false, data: facultades }),
 }))
 vi.mock('@/features/catalogos/ImportarArchivo', () => ({ ImportarArchivo: () => null }))
+vi.mock('@/features/periodos/PeriodoContext', () => ({
+  usePeriodo: () => ({ periodo: { id: 'p1', facultadId: 'f1' } }),
+}))
 vi.mock('@/components/DataTable', () => ({
   DataTable: ({ datos, filtros }: { datos: Docente[]; filtros: ReactNode }) => (
     <div>

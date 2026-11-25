@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import type { UrlFirmadaB } from '@/api/adaptadores'
 import { FLUJO, K } from '@/api/claves'
-import { useMutacion } from '@/api/mutacion'
+import { descargarUrl, useMutacion } from '@/api/mutacion'
 import { usePeriodo } from '@/features/periodos/PeriodoContext'
 import type {
   EstadoAsignacionTema,
@@ -103,12 +104,19 @@ export const useEquipos = (periodoId?: string) =>
     enabled: !!periodoId,
   })
 
+/** Mientras un PAT se está generando, el detalle se vuelve a consultar para actualizar la barra. */
+const generando = (equipo: Equipo | undefined) =>
+  equipo?.integrantes.some((i) =>
+    ['EN_COLA', 'PROCESANDO'].includes(i.pat.ultimaGeneracion?.estado ?? ''),
+  ) ?? false
+
 export const useEquipo = (id?: string) => {
   const { periodoId } = usePeriodo()
   return useQuery({
     queryKey: [...K.equipos, 'detalle', periodoId, id],
     queryFn: () => api.get<Equipo>(`/periodos/${periodoId}/equipos/${id}`),
     enabled: !!id && !!periodoId,
+    refetchInterval: (consulta) => (generando(consulta.state.data) ? 2000 : false),
   })
 }
 
@@ -211,6 +219,21 @@ export const useGenerarPatEstudiante = (equipoId: UUID, estudianteId: UUID) => {
     invalida: FLUJO,
     exito: 'Generación del PAT encolada.',
   })
+}
+
+/** Descarga el PAT generado de un integrante en el Word oficial PAT-04-F-002 (mismo formato que el estudiante). */
+export async function descargarPatGenerado(
+  periodoId: string,
+  equipoId: UUID,
+  estudianteId: UUID,
+  generacionId: UUID,
+  nombre: string,
+) {
+  const r = await api.get<UrlFirmadaB>(
+    `/periodos/${periodoId}/equipos/${equipoId}/integrantes/${estudianteId}/generaciones/${generacionId}/descarga`,
+    { formato: 'docx' },
+  )
+  descargarUrl(r.url, nombre)
 }
 
 export const useAsignarTutorCandidato = () => {

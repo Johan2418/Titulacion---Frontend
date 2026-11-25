@@ -29,6 +29,10 @@ vi.mock('@/features/equipos/api', () => ({
   useConfirmarPatInverso: () => ({ mutate: vi.fn(), isPending: false }),
   useGenerarPatEstudiante: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
   useEntregarPatFirmado: () => ({ mutate: vi.fn(), isPending: false }),
+  descargarPatGenerado: vi.fn(),
+}))
+vi.mock('@/features/periodos/PeriodoContext', () => ({
+  usePeriodo: () => ({ periodoId: 'p1' }),
 }))
 
 const pantalla = () =>
